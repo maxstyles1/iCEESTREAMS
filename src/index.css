@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+@theme {
+  --color-icee-black: #0A0A0D;
+  --color-icee-dark: #131318;
+  --color-icee-elevated: #1A1A22;
+  --color-icee-purple: #A855F7;
+  --color-icee-cyan: #22D3EE;
+  --color-icee-pink: #EC4899;
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+:root {
+  --accent: #A855F7;
+  --accent2: #22D3EE;
+  --accent-soft: rgba(168, 85, 247, 0.16);
+  --accent-border: rgba(168, 85, 247, 0.34);
+  --canvas-bg: #0A0A0D;
+  --surface-bg: #131318;
+  --elevated-bg: #1A1A22;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+}
+
+.theme-neon {
+  --accent: #A855F7;
+  --accent2: #22D3EE;
+  --accent-soft: rgba(168, 85, 247, 0.16);
+  --accent-border: rgba(168, 85, 247, 0.36);
+}
+
+.theme-cyber {
+  --accent: #22D3EE;
+  --accent2: #EC4899;
+  --accent-soft: rgba(34, 211, 238, 0.16);
+  --accent-border: rgba(34, 211, 238, 0.36);
+}
+
+.theme-ember {
+  --accent: #F97316;
+  --accent2: #EF4444;
+  --accent-soft: rgba(249, 115, 22, 0.16);
+  --accent-border: rgba(249, 115, 22, 0.36);
+}
+
+.theme-void {
+  --accent: #8B5CF6;
+  --accent2: #A78BFA;
+  --accent-soft: rgba(139, 92, 246, 0.16);
+  --accent-border: rgba(139, 92, 246, 0.36);
+}
+
+.surface-oled {
+  --canvas-bg: #000000;
+  --surface-bg: #0C0C0F;
+  --elevated-bg: #141418;
+  --border-subtle: rgba(255, 255, 255, 0.09);
+}
+
+.surface-obsidian {
+  --canvas-bg: #0A0A0D;
+  --surface-bg: #131318;
+  --elevated-bg: #1A1A22;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+}
+
+body {
+  background-color: var(--canvas-bg);
+  color: #F8FAFC;
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-card {
+  background-color: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+}
+
+.surface-elevated {
+  background-color: var(--elevated-bg);
+  border: 1px solid var(--border-subtle);
+}
+
+.accent-bg {
+  background-color: var(--accent);
+}
+
+.accent-text {
+  color: var(--accent);
+}
+
+.accent-soft-bg {
+  background-color: var(--accent-soft);
+}
+
+.accent-ring {
+  border-color: var(--accent-border);
+}
+
+.accent-gradient {
+  background-image: linear-gradient(135deg, var(--accent), var(--accent2));
+}
+
+.range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.12);
+  height: 6px;
+  border-radius: 9999px;
+}
+
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #ffffff;
+  cursor: pointer;
+}
+
+.range-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #ffffff;
+  cursor: pointer;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes ambient-drift-a {
+  0% {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(5%, 6%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-3%, 4%, 0) scale(0.96);
+  }
+}
+
+@keyframes ambient-drift-b {
+  0% {
+    transform: translate3d(6%, 5%, 0) scale(1.04);
+  }
+  50% {
+    transform: translate3d(-5%, -6%, 0) scale(0.95);
+  }
+  100% {
+    transform: translate3d(4%, -2%, 0) scale(1.06);
+  }
+}
+
+@keyframes ambient-drift-c {
+  0% {
+    transform: translate3d(0%, 4%, 0) scale(0.97);
+  }
+  50% {
+    transform: translate3d(-4%, -3%, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(5%, -5%, 0) scale(1);
+  }
+}
+
+.ambient-orb-a {
+  animation: ambient-drift-a 26s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.ambient-orb-b {
+  animation: ambient-drift-b 34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.ambient-orb-c {
+  animation: ambient-drift-c 40s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
