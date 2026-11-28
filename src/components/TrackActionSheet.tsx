@@ -63,7 +63,7 @@ export default function TrackActionSheet({
       aria-label={`Options for ${track.title}`}
     >
       <div
-        className="w-full md:max-w-md surface-elevated rounded-t-3xl md:rounded-2xl p-5 max-h-[85vh] overflow-y-auto"
+        className="w-full md:max-w-md surface-elevated rounded-t-3xl md:rounded-3xl p-5 max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4 md:hidden" />
@@ -73,13 +73,15 @@ export default function TrackActionSheet({
             src={track.coverUrl}
             alt={track.title}
             fallbackGradient={track.fallbackGradient}
-            className="w-14 h-14 rounded-xl"
+            glow={true}
+            glowSeed={track.id}
+            className="w-16 h-16 rounded-2xl"
           />
           <div className="flex-1 min-w-0">
-            <h3 className="font-display font-semibold text-base text-white truncate">
+            <h3 className="font-display font-bold text-base text-[#F5F5FA] truncate">
               {track.title}
             </h3>
-            <p className="text-xs text-slate-400 truncate mt-0.5">
+            <p className="text-xs font-light text-slate-400 truncate mt-0.5">
               {track.artist} · {track.album}
             </p>
             <p className="text-[11px] font-mono tabular-nums text-slate-400 mt-1">
@@ -90,21 +92,21 @@ export default function TrackActionSheet({
             type="button"
             onClick={onClose}
             aria-label="Close options"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl text-slate-400 hover:text-[#F5F5FA] hover:bg-white/10 transition-colors"
           >
             <X size={20} />
           </button>
         </div>
 
         {!showPlaylistPicker ? (
-          <div className="mt-3 space-y-1">
+          <div className="mt-3 space-y-1.5">
             <button
               type="button"
               onClick={() => {
                 onPlayNow(track.id);
                 onClose();
               }}
-              className="w-full min-h-[44px] px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-white hover:bg-white/5 transition-colors text-left"
+              className="w-full min-h-[44px] px-3 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-medium text-[#F5F5FA] hover:bg-white/5 transition-colors text-left"
             >
               <Play size={18} className="accent-text shrink-0" />
               <span>Play Now</span>
@@ -116,7 +118,7 @@ export default function TrackActionSheet({
                 onPlayNext(track.id);
                 onClose();
               }}
-              className="w-full min-h-[44px] px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-white hover:bg-white/5 transition-colors text-left"
+              className="w-full min-h-[44px] px-3 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-medium text-[#F5F5FA] hover:bg-white/5 transition-colors text-left"
             >
               <SkipForward size={18} className="text-slate-300 shrink-0" />
               <span>Play Next</span>
@@ -128,7 +130,7 @@ export default function TrackActionSheet({
                 onAddToQueue(track.id);
                 onClose();
               }}
-              className="w-full min-h-[44px] px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-white hover:bg-white/5 transition-colors text-left"
+              className="w-full min-h-[44px] px-3 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-medium text-[#F5F5FA] hover:bg-white/5 transition-colors text-left"
             >
               <ListEnd size={18} className="text-slate-300 shrink-0" />
               <span>Add to Queue</span>
@@ -137,7 +139,7 @@ export default function TrackActionSheet({
             <button
               type="button"
               onClick={() => setShowPlaylistPicker(true)}
-              className="w-full min-h-[44px] px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-white hover:bg-white/5 transition-colors text-left"
+              className="w-full min-h-[44px] px-3 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-medium text-[#F5F5FA] hover:bg-white/5 transition-colors text-left"
             >
               <ListPlus size={18} className="text-slate-300 shrink-0" />
               <span>Add to Playlist</span>
@@ -149,11 +151,14 @@ export default function TrackActionSheet({
                 onToggleLike(track.id);
                 onClose();
               }}
-              className="w-full min-h-[44px] px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-white hover:bg-white/5 transition-colors text-left"
+              className="w-full min-h-[44px] px-3 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-medium text-[#F5F5FA] hover:bg-white/5 transition-colors text-left"
             >
               <Heart
                 size={18}
-                className={isLiked ? 'accent-text fill-current shrink-0' : 'text-slate-300 shrink-0'}
+                fill={isLiked ? 'currentColor' : 'none'}
+                className={
+                  isLiked ? 'text-[var(--accent2)] icon-glow shrink-0' : 'text-slate-300 shrink-0'
+                }
               />
               <span>{isLiked ? 'Remove from Liked' : 'Save to Liked'}</span>
             </button>
@@ -164,7 +169,7 @@ export default function TrackActionSheet({
                 onToggleDownload(track.id);
                 onClose();
               }}
-              className="w-full min-h-[44px] px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-white hover:bg-white/5 transition-colors text-left"
+              className="w-full min-h-[44px] px-3 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-medium text-[#F5F5FA] hover:bg-white/5 transition-colors text-left"
             >
               {isDownloaded ? (
                 <>
@@ -185,7 +190,7 @@ export default function TrackActionSheet({
                 onShareTrack(track);
                 onClose();
               }}
-              className="w-full min-h-[44px] px-3 py-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-white hover:bg-white/5 transition-colors text-left"
+              className="w-full min-h-[44px] px-3 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-medium text-[#F5F5FA] hover:bg-white/5 transition-colors text-left"
             >
               <Share2 size={18} className="text-slate-300 shrink-0" />
               <span>Share Track</span>
@@ -194,7 +199,7 @@ export default function TrackActionSheet({
         ) : (
           <div className="mt-4 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">Choose Playlist</p>
+              <p className="text-sm font-semibold text-[#F5F5FA]">Choose Playlist</p>
               <button
                 type="button"
                 onClick={() => setShowPlaylistPicker(false)}
@@ -204,7 +209,7 @@ export default function TrackActionSheet({
               </button>
             </div>
 
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
               {userPlaylists.map((pl) => {
                 const alreadyIn = pl.trackIds.includes(track.id);
                 return (
@@ -215,10 +220,10 @@ export default function TrackActionSheet({
                       onAddToPlaylist(pl.id, track.id);
                       onClose();
                     }}
-                    className="w-full min-h-[44px] px-3 py-2 rounded-xl surface-card flex items-center justify-between text-left hover:border-white/20 transition-colors"
+                    className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl surface-card flex items-center justify-between text-left hover:border-white/20 transition-colors"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{pl.title}</p>
+                      <p className="text-sm font-medium text-[#F5F5FA] truncate">{pl.title}</p>
                       <p className="text-xs text-slate-400 tabular-nums">
                         {pl.trackIds.length} tracks
                       </p>
@@ -250,11 +255,11 @@ export default function TrackActionSheet({
                 value={newPlaylistName}
                 onChange={(e) => setNewPlaylistName(e.target.value)}
                 placeholder="New playlist name..."
-                className="flex-1 min-h-[44px] bg-black/40 border border-white/15 rounded-xl px-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-white/40"
+                className="flex-1 min-h-[44px] bg-black/40 border border-white/15 rounded-2xl px-3.5 text-sm text-[#F5F5FA] placeholder:text-slate-500 focus:outline-none focus:border-[var(--accent)]"
               />
               <button
                 type="submit"
-                className="min-h-[44px] px-4 rounded-xl accent-bg text-white text-sm font-medium whitespace-nowrap shrink-0"
+                className="min-h-[44px] px-4 rounded-2xl accent-bg text-sm font-semibold whitespace-nowrap shrink-0"
               >
                 Create
               </button>

@@ -5,10 +5,16 @@ export interface AmbientPalette {
 }
 
 const DEFAULT_PALETTE: AmbientPalette = {
-  primary: 'rgb(124, 58, 237)',
-  secondary: 'rgb(14, 165, 233)',
-  tertiary: 'rgb(79, 70, 229)',
+  primary: 'rgb(0, 229, 255)',
+  secondary: 'rgb(255, 79, 216)',
+  tertiary: 'rgb(56, 189, 248)',
 };
+
+export function toGlowRgba(rgbColor: string, alpha = 0.42): string {
+  const match = rgbColor.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);
+  if (!match) return `rgba(0, 229, 255, ${alpha})`;
+  return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
+}
 
 const paletteCache = new Map<string, AmbientPalette>();
 
@@ -18,9 +24,9 @@ function clampChannel(n: number): number {
 
 function softenColor(r: number, g: number, b: number): string {
   // Blend 20% toward a deep neutral slate so ambient lights remain calm and relaxing
-  const sr = clampChannel(r * 0.8 + 20 * 0.2);
-  const sg = clampChannel(g * 0.8 + 24 * 0.2);
-  const sb = clampChannel(b * 0.8 + 38 * 0.2);
+  const sr = clampChannel(r * 0.8 + 10 * 0.2);
+  const sg = clampChannel(g * 0.8 + 14 * 0.2);
+  const sb = clampChannel(b * 0.8 + 24 * 0.2);
   return `rgb(${sr}, ${sg}, ${sb})`;
 }
 

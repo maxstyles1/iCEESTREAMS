@@ -26,7 +26,6 @@ import { getAndroidPermissionReport } from '../utils/androidPermissions';
 interface SettingsProps {
   preferences: UserPreferences;
   localTrackCount: number;
-  cachedStreamCount: number;
   onUpdatePreferences: (patch: Partial<UserPreferences>) => void;
   onSelectEqPreset: (preset: EqPresetId) => void;
   onChangeEqBand: (band: keyof EqBands, value: number) => void;
@@ -38,17 +37,117 @@ interface SettingsProps {
   onResetPreferences: () => void;
 }
 
-const THEMES: { id: ThemeId; name: string; swatch: string }[] = [
-  { id: 'neon', name: 'Neon Noir', swatch: 'from-purple-600 to-cyan-400' },
-  { id: 'cyber', name: 'Cyber', swatch: 'from-cyan-400 to-pink-500' },
-  { id: 'ember', name: 'Ember', swatch: 'from-orange-500 to-red-600' },
-  { id: 'void', name: 'Void', swatch: 'from-violet-600 to-purple-400' },
+const THEMES: {
+  id: ThemeId;
+  name: string;
+  hex: string;
+  swatch: string;
+  checkDark?: boolean;
+}[] = [
+  {
+    id: 'icee',
+    name: 'iCEE Streams',
+    hex: '#00E5FF + #FF4FD8',
+    swatch: 'from-[#00E5FF] via-[#0A0A0F] to-[#FF4FD8]',
+    checkDark: false,
+  },
+  { id: 'neon', name: 'Neon Noir', hex: '#A855F7', swatch: 'from-purple-600 to-cyan-400' },
+  { id: 'cyber', name: 'Cyber', hex: '#22D3EE', swatch: 'from-cyan-400 to-pink-500', checkDark: true },
+  { id: 'ember', name: 'Ember', hex: '#F97316', swatch: 'from-orange-500 to-red-600' },
+  { id: 'void', name: 'Void', hex: '#8B5CF6', swatch: 'from-violet-600 to-purple-400' },
+  {
+    id: 'darkest-neon-black',
+    name: 'Darkest Neon Black',
+    hex: '#0A0A0F',
+    swatch: 'from-[#0A0A0F] via-[#151524] to-[#B026FF]',
+  },
+  {
+    id: 'neon-canary-yellow',
+    name: 'Neon Canary Yellow',
+    hex: '#FFF01F',
+    swatch: 'from-[#FFF01F] to-[#FFD000]',
+    checkDark: true,
+  },
+  {
+    id: 'aqua-bright-blue',
+    name: 'Aqua Bright Blue',
+    hex: '#00E5FF',
+    swatch: 'from-[#00E5FF] to-[#0099FF]',
+    checkDark: true,
+  },
+  {
+    id: 'candy-pink',
+    name: 'Candy Pink',
+    hex: '#FF4FD8',
+    swatch: 'from-[#FF4FD8] to-[#FF85E6]',
+    checkDark: true,
+  },
+  {
+    id: 'ocean-night',
+    name: 'Ocean Night',
+    hex: '#0B2545 / #06141F',
+    swatch: 'from-[#06141F] via-[#0B2545] to-[#22D3EE]',
+  },
+  {
+    id: 'black-gold',
+    name: 'Black & Gold',
+    hex: '#0A0A0F + #D4AF37',
+    swatch: 'from-[#0A0A0F] to-[#D4AF37]',
+  },
+  {
+    id: 'yellow-orange',
+    name: 'Yellow & Orange',
+    hex: '#FFD23F + #FF7A00',
+    swatch: 'from-[#FFD23F] to-[#FF7A00]',
+    checkDark: true,
+  },
+  {
+    id: 'coral-turquoise',
+    name: 'Coral & Turquoise',
+    hex: '#FF6F61 + #1FD1C1',
+    swatch: 'from-[#FF6F61] to-[#1FD1C1]',
+    checkDark: true,
+  },
+  {
+    id: 'pink-mint',
+    name: 'Pink & Mint',
+    hex: '#FF8FD4 + #8EF0C4',
+    swatch: 'from-[#FF8FD4] to-[#8EF0C4]',
+    checkDark: true,
+  },
+  {
+    id: 'green-beige',
+    name: 'Green & Beige',
+    hex: '#4C7A4C + #E8DFC8',
+    swatch: 'from-[#4C7A4C] to-[#E8DFC8]',
+    checkDark: true,
+  },
+  {
+    id: 'navy-white',
+    name: 'Navy & White',
+    hex: '#0B1F3A + #F5F6F8',
+    swatch: 'from-[#0B1F3A] to-[#F5F6F8]',
+    checkDark: true,
+  },
+  {
+    id: 'red-yellow',
+    name: 'Red & Yellow',
+    hex: '#E8392B + #FFD23F',
+    swatch: 'from-[#E8392B] to-[#FFD23F]',
+    checkDark: true,
+  },
+  {
+    id: 'peach-teal',
+    name: 'Peach & Teal',
+    hex: '#FFB199 + #107A82',
+    swatch: 'from-[#FFB199] to-[#107A82]',
+    checkDark: true,
+  },
 ];
 
 export default function Settings({
   preferences,
   localTrackCount,
-  cachedStreamCount,
   onUpdatePreferences,
   onSelectEqPreset,
   onChangeEqBand,
@@ -81,17 +180,20 @@ export default function Settings({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="surface-card rounded-2xl p-5 space-y-5">
+        <section className="surface-card rounded-3xl p-5 space-y-5">
           <div className="flex items-center gap-2">
-            <Palette size={18} className="accent-text" />
-            <h2 className="font-display text-base font-semibold text-white">
+            <Palette size={18} className="accent-text icon-glow" />
+            <h2 className="font-display text-base font-bold text-[#F5F5FA]">
               Appearance & Layout
             </h2>
           </div>
 
           <div>
-            <p className="text-xs text-slate-400 mb-2.5">Accent Theme</p>
-            <div className="grid grid-cols-4 gap-2.5">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-xs text-slate-400">Theme & UI Color Picker</p>
+              <span className="text-[11px] font-mono text-slate-400">{THEMES.length} themes</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {THEMES.map((t) => {
                 const active = preferences.theme === t.id;
                 return (
@@ -99,17 +201,27 @@ export default function Settings({
                     key={t.id}
                     type="button"
                     onClick={() => onUpdatePreferences({ theme: t.id })}
-                    className={`rounded-xl p-1.5 text-center transition-all border ${
-                      active ? 'border-white bg-white/10' : 'border-white/10 hover:border-white/25'
+                    className={`rounded-2xl p-2 text-left transition-all border ${
+                      active
+                        ? 'border-[var(--accent)] bg-white/10 accent-glow-ring'
+                        : 'border-white/10 hover:border-white/25'
                     }`}
                   >
                     <div
-                      className={`h-11 rounded-lg bg-gradient-to-br ${t.swatch} flex items-center justify-center`}
+                      className={`h-9 rounded-xl bg-gradient-to-r ${t.swatch} border border-white/10 flex items-center justify-center`}
                     >
-                      {active && <Check size={16} className="text-white drop-shadow" />}
+                      {active && (
+                        <Check
+                          size={16}
+                          className={t.checkDark ? 'text-slate-950' : 'text-white drop-shadow'}
+                        />
+                      )}
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200 block mt-1.5 truncate">
+                    <span className="text-[11px] font-medium text-slate-100 block mt-1.5 truncate">
                       {t.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 block truncate">
+                      {t.hex}
                     </span>
                   </button>
                 );
@@ -120,7 +232,7 @@ export default function Settings({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-xs text-slate-400 mb-2">Surface Contrast</p>
-              <div className="grid grid-cols-2 gap-1.5 p-1 surface-elevated rounded-xl">
+              <div className="grid grid-cols-2 gap-1.5 p-1 surface-elevated rounded-2xl">
                 {(
                   [
                     { id: 'obsidian', label: 'Obsidian' },
@@ -131,10 +243,10 @@ export default function Settings({
                     key={mode.id}
                     type="button"
                     onClick={() => onUpdatePreferences({ surface: mode.id })}
-                    className={`min-h-[38px] px-2 rounded-lg text-xs font-medium transition-colors ${
+                    className={`min-h-[38px] px-2 rounded-xl text-xs font-medium transition-colors ${
                       preferences.surface === mode.id
-                        ? 'accent-bg text-white'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'accent-bg font-semibold'
+                        : 'text-slate-400 hover:text-[#F5F5FA]'
                     }`}
                   >
                     {mode.label}
@@ -145,7 +257,7 @@ export default function Settings({
 
             <div>
               <p className="text-xs text-slate-400 mb-2">List Density</p>
-              <div className="grid grid-cols-2 gap-1.5 p-1 surface-elevated rounded-xl">
+              <div className="grid grid-cols-2 gap-1.5 p-1 surface-elevated rounded-2xl">
                 {(
                   [
                     { id: 'comfortable', label: 'Comfortable' },
@@ -156,10 +268,10 @@ export default function Settings({
                     key={mode.id}
                     type="button"
                     onClick={() => onUpdatePreferences({ density: mode.id })}
-                    className={`min-h-[38px] px-2 rounded-lg text-xs font-medium transition-colors ${
+                    className={`min-h-[38px] px-2 rounded-xl text-xs font-medium transition-colors ${
                       preferences.density === mode.id
-                        ? 'accent-bg text-white'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'accent-bg font-semibold'
+                        : 'text-slate-400 hover:text-[#F5F5FA]'
                     }`}
                   >
                     {mode.label}
@@ -191,10 +303,10 @@ export default function Settings({
           </div>
         </section>
 
-        <section className="surface-card rounded-2xl p-5 space-y-5">
+        <section className="surface-card rounded-3xl p-5 space-y-5">
           <div className="flex items-center gap-2">
-            <Sliders size={18} className="accent-text" />
-            <h2 className="font-display text-base font-semibold text-white">
+            <Sliders size={18} className="accent-text icon-glow" />
+            <h2 className="font-display text-base font-bold text-[#F5F5FA]">
               Audio & Playback Engine
             </h2>
           </div>
@@ -215,13 +327,13 @@ export default function Settings({
                     key={q.id}
                     type="button"
                     onClick={() => onUpdatePreferences({ audioQuality: q.id })}
-                    className={`min-h-[54px] p-2.5 rounded-xl text-left transition-colors ${
+                    className={`min-h-[54px] p-2.5 rounded-2xl text-left transition-colors ${
                       active
                         ? 'accent-soft-bg border accent-ring'
                         : 'surface-elevated hover:bg-white/5'
                     }`}
                   >
-                    <p className={`text-xs font-semibold ${active ? 'accent-text' : 'text-white'}`}>
+                    <p className={`text-xs font-semibold ${active ? 'accent-text' : 'text-[#F5F5FA]'}`}>
                       {q.label}
                     </p>
                     <p className="text-[11px] font-mono text-slate-400 mt-0.5">{q.spec}</p>
@@ -241,7 +353,7 @@ export default function Settings({
                     onUpdatePreferences({ eqBypassed: !preferences.eqBypassed })
                   }
                   aria-pressed={preferences.eqBypassed}
-                  className={`min-h-[32px] px-2.5 rounded-lg text-xs font-medium transition-colors ${
+                  className={`min-h-[32px] px-2.5 rounded-xl text-xs font-medium transition-colors ${
                     preferences.eqBypassed
                       ? 'bg-amber-500/20 text-amber-200 border border-amber-400/40'
                       : 'accent-soft-bg accent-text border accent-ring'
@@ -252,7 +364,7 @@ export default function Settings({
                 <button
                   type="button"
                   onClick={onResetEq}
-                  className="min-h-[32px] px-2.5 rounded-lg surface-elevated text-xs font-medium text-slate-300 hover:text-white"
+                  className="min-h-[32px] px-2.5 rounded-xl surface-elevated text-xs font-medium text-slate-300 hover:text-[#F5F5FA]"
                 >
                   Reset
                 </button>
@@ -264,10 +376,10 @@ export default function Settings({
                   key={presetKey}
                   type="button"
                   onClick={() => onSelectEqPreset(presetKey)}
-                  className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  className={`min-h-[36px] px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors ${
                     !preferences.eqBypassed && preferences.eqPreset === presetKey
-                      ? 'accent-bg text-white'
-                      : 'surface-elevated text-slate-300 hover:text-white'
+                      ? 'accent-bg font-semibold'
+                      : 'surface-elevated text-slate-300 hover:text-[#F5F5FA]'
                   }`}
                 >
                   {EQ_PRESETS[presetKey].label}
@@ -277,10 +389,10 @@ export default function Settings({
 
             <div className={`grid grid-cols-3 gap-3 transition-opacity ${preferences.eqBypassed ? 'opacity-50' : 'opacity-100'}`}>
               {(['bass', 'mids', 'treble'] as const).map((band) => (
-                <div key={band} className="surface-elevated rounded-xl p-2.5">
+                <div key={band} className="surface-elevated rounded-2xl p-2.5">
                   <div className="flex justify-between text-[11px] mb-1.5">
                     <span className="capitalize text-slate-400">{band}</span>
-                    <span className="font-mono tabular-nums text-white">
+                    <span className="font-mono tabular-nums text-[#F5F5FA]">
                       {preferences.eqBands[band] > 0
                         ? `+${preferences.eqBands[band]}`
                         : preferences.eqBands[band]}
@@ -309,10 +421,10 @@ export default function Settings({
                   key={sec}
                   type="button"
                   onClick={() => onUpdatePreferences({ crossfadeSec: sec })}
-                  className={`min-h-[40px] rounded-xl text-xs font-mono tabular-nums font-medium transition-colors ${
+                  className={`min-h-[40px] rounded-2xl text-xs font-mono tabular-nums font-medium transition-colors ${
                     preferences.crossfadeSec === sec
-                      ? 'accent-bg text-white'
-                      : 'surface-elevated text-slate-300 hover:text-white'
+                      ? 'accent-bg font-semibold'
+                      : 'surface-elevated text-slate-300 hover:text-[#F5F5FA]'
                   }`}
                 >
                   {sec === 0 ? 'Off' : `${sec}s`}
@@ -322,18 +434,18 @@ export default function Settings({
           </div>
         </section>
 
-        <section className="surface-card rounded-2xl p-5 space-y-4 lg:col-span-2">
+        <section className="surface-card rounded-3xl p-5 space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between pb-2 border-b border-white/10">
             <div className="flex items-center gap-2">
-              <ShieldCheck size={18} className="accent-text" />
-              <h2 className="font-display text-base font-semibold text-white">
-                Streaming, Background Service & Data Controls
+              <ShieldCheck size={18} className="accent-text icon-glow" />
+              <h2 className="font-display text-base font-bold text-[#F5F5FA]">
+                Streaming, Background Service & Visuals
               </h2>
             </div>
             <button
               type="button"
               onClick={onSyncNow}
-              className="min-h-[40px] px-3.5 py-1.5 rounded-xl surface-elevated text-xs font-medium text-white hover:bg-white/10 flex items-center gap-2"
+              className="min-h-[40px] px-3.5 py-1.5 rounded-2xl surface-elevated text-xs font-medium text-[#F5F5FA] hover:bg-white/10 flex items-center gap-2"
             >
               <Cloud size={14} className="accent-text" />
               <span>Sync Now ({preferences.lastSynced})</span>
@@ -343,24 +455,14 @@ export default function Settings({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
             {[
               {
-                key: 'lowDataMode' as const,
-                title: 'Low-Data Mode',
-                desc: 'Use lower-bitrate streams and pause preloading & background caching',
-              },
-              {
                 key: 'backgroundPlayback' as const,
                 title: 'Background Playback & Media Session',
                 desc: 'Keep playback running across tabs & show lock-screen/notification controls',
               },
               {
-                key: 'preloadNextTrack' as const,
-                title: 'Preload Next Track',
-                desc: 'Buffer the upcoming track in your queue ahead of time for instant transitions',
-              },
-              {
-                key: 'cacheRecentStreams' as const,
-                title: 'Cache Recently Played Streams',
-                desc: `Save up to 15 recent online tracks locally (${cachedStreamCount} cached)`,
+                key: 'showVisualizer' as const,
+                title: 'Mini Audio Visualizer',
+                desc: 'Show audio-reactive spectrum bars on the Now Playing screen',
               },
               {
                 key: 'normalizeVolume' as const,
@@ -369,28 +471,13 @@ export default function Settings({
               },
               {
                 key: 'autoplaySimilar' as const,
-                title: 'Autoplay Similar Tracks',
-                desc: 'Continue playing curated tracks when your queue ends',
-              },
-              {
-                key: 'allowExplicit' as const,
-                title: 'Allow Explicit Content',
-                desc: 'Show and play unedited releases in Search and mixes',
-              },
-              {
-                key: 'wifiOnlyDownloads' as const,
-                title: 'Download Over Wi-Fi Only',
-                desc: 'Prevent offline audio syncing on cellular networks',
+                title: 'Loop / Continuous Queue',
+                desc: 'Continue playing local tracks when your queue ends',
               },
               {
                 key: 'shareListeningActivity' as const,
                 title: 'Share Listening Activity',
-                desc: 'Let followed friends see what you are listening to live',
-              },
-              {
-                key: 'soundPreview' as const,
-                title: 'Ambient Synth Audio Preview',
-                desc: 'Play synthesized harmonic chords for built-in catalog items',
+                desc: 'Allow local vibe cards and activity posts',
               },
             ].map((item) => (
               <label
@@ -431,14 +518,14 @@ export default function Settings({
                   <span className="font-mono text-slate-200">FOREGROUND_SERVICE_MEDIA_PLAYBACK</span>
                 </p>
               </div>
-              <div className="flex items-center p-1 surface-elevated rounded-xl">
+              <div className="flex items-center p-1 surface-elevated rounded-2xl">
                 <button
                   type="button"
                   onClick={() => onUpdatePreferences({ androidApiProfile: 'android13+' })}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
                     preferences.androidApiProfile === 'android13+'
-                      ? 'accent-bg text-white'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'accent-bg font-semibold'
+                      : 'text-slate-400 hover:text-[#F5F5FA]'
                   }`}
                 >
                   Android 13+ (READ_MEDIA_AUDIO)
@@ -446,10 +533,10 @@ export default function Settings({
                 <button
                   type="button"
                   onClick={() => onUpdatePreferences({ androidApiProfile: 'android12-' })}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
                     preferences.androidApiProfile === 'android12-'
-                      ? 'accent-bg text-white'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'accent-bg font-semibold'
+                      : 'text-slate-400 hover:text-[#F5F5FA]'
                   }`}
                 >
                   Android 12- (READ_EXTERNAL_STORAGE)
@@ -458,9 +545,9 @@ export default function Settings({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="surface-elevated rounded-xl p-3.5 flex items-center justify-between gap-3">
+              <div className="surface-elevated rounded-2xl p-3.5 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-white">Local Device Audio Access</p>
+                  <p className="text-xs font-semibold text-[#F5F5FA]">Local Device Audio Access</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     {preferences.localStoragePermission === 'granted'
                       ? `Granted · ${localTrackCount} local audio files ready`
@@ -474,7 +561,7 @@ export default function Settings({
                     type="button"
                     onClick={onRescanLocalMusic}
                     aria-label="Rescan local music"
-                    className="min-h-[38px] px-3 py-1.5 rounded-xl surface-card text-xs font-medium text-white flex items-center gap-1"
+                    className="min-h-[38px] px-3 py-1.5 rounded-2xl surface-card text-xs font-medium text-[#F5F5FA] flex items-center gap-1"
                   >
                     <RefreshCw size={13} className="accent-text" />
                     <span>Rescan</span>
@@ -482,7 +569,7 @@ export default function Settings({
                   <button
                     type="button"
                     onClick={onRequestLocalPermission}
-                    className="min-h-[38px] px-3 py-1.5 rounded-xl accent-bg text-white text-xs font-medium whitespace-nowrap"
+                    className="min-h-[38px] px-3.5 py-1.5 rounded-2xl accent-bg text-xs font-semibold whitespace-nowrap"
                   >
                     {preferences.localStoragePermission === 'granted' ? 'Manage' : 'Grant'}
                   </button>

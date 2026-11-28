@@ -1,6 +1,24 @@
 export type ScreenId = 'home' | 'search' | 'library' | 'social' | 'settings';
 
-export type ThemeId = 'neon' | 'cyber' | 'ember' | 'void';
+export type ThemeId =
+  | 'icee'
+  | 'neon'
+  | 'cyber'
+  | 'ember'
+  | 'void'
+  | 'darkest-neon-black'
+  | 'neon-canary-yellow'
+  | 'aqua-bright-blue'
+  | 'candy-pink'
+  | 'ocean-night'
+  | 'black-gold'
+  | 'yellow-orange'
+  | 'coral-turquoise'
+  | 'pink-mint'
+  | 'green-beige'
+  | 'navy-white'
+  | 'red-yellow'
+  | 'peach-teal';
 export type SurfaceMode = 'obsidian' | 'oled';
 export type DensityMode = 'comfortable' | 'compact';
 export type LanguageCode = 'en' | 'es' | 'fr' | 'de' | 'pt';
@@ -106,6 +124,7 @@ export interface UserPreferences {
   eqBypassed: boolean;
   spatialAudio: boolean;
   soundPreview: boolean;
+  showVisualizer: boolean;
   lastSynced: string;
   localStoragePermission: LocalStoragePermissionState;
   androidApiProfile: AndroidApiProfile;

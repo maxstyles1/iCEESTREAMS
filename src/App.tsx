@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import {
+  COVERS,
   DEFAULT_PREFERENCES,
   EQ_PRESETS,
   INITIAL_FRIENDS,
   INITIAL_NOTIFICATIONS,
-  INITIAL_PLAYLISTS,
-  TRACKS,
 } from './data/catalog';
 import {
   EqBands,
@@ -24,11 +24,7 @@ import {
   requestAndroidAudioAndMediaPermissions,
   requestMediaNotificationPermission,
 } from './utils/androidPermissions';
-import {
-  CachedStreamEntry,
-  clearAllCachedStreams,
-  getCachedStreamEntries,
-} from './utils/streamCache';
+import { clearAllCachedStreams } from './utils/streamCache';
 import {
   clearAllLocalTracksFromStorage,
   loadSavedLocalTracks,
@@ -51,28 +47,13 @@ import PlaylistDetailModal from './components/PlaylistDetailModal';
 import LocalPermissionModal from './components/LocalPermissionModal';
 import AmbientGlow from './components/AmbientGlow';
 
-const STORAGE_KEY = 'icee_streams_state_v2';
-
-function isStreamBackedTrack(track: Track): boolean {
-  return (
-    track.source === 'local' ||
-    track.source === 'audius' ||
-    track.source === 'itunes' ||
-    track.source === 'jamendo' ||
-    track.source === 'youtube' ||
-    track.source === 'google' ||
-    track.source === 'custom'
-  );
-}
+const STORAGE_KEY = 'icee_streams_state_v3';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('home');
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [isAudioDrawerOpen, setIsAudioDrawerOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
 
   const [preferences, setPreferences] = useState<UserPreferences>(() => {
     const detectedProfile = detectAndroidApiProfile();
@@ -83,7 +64,10 @@ export default function App() {
         ? 'denied'
         : 'prompt';
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('icee_streams_state_v1');
+      const raw =
+        localStorage.getItem(STORAGE_KEY) ||
+        localStorage.getItem('icee_streams_state_v2') ||
+        localStorage.getItem('icee_streams_state_v1');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.preferences) {
@@ -99,6 +83,7 @@ export default function App() {
             ...parsed.preferences,
             eqPreset: validPreset,
             eqBypassed: Boolean(parsed.preferences.eqBypassed),
+            showVisualizer: parsed.preferences.showVisualizer ?? true,
           };
         }
       }
@@ -114,7 +99,7 @@ export default function App() {
 
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('icee_streams_state_v1');
+      const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.playlists)) return parsed.playlists;
@@ -122,12 +107,12 @@ export default function App() {
     } catch {
       // ignore
     }
-    return INITIAL_PLAYLISTS;
+    return [];
   });
 
   const [likedTrackIds, setLikedTrackIds] = useState<string[]>(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('icee_streams_state_v1');
+      const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.likedTrackIds)) return parsed.likedTrackIds;
@@ -135,12 +120,12 @@ export default function App() {
     } catch {
       // ignore
     }
-    return ['t-midnight-drive', 't-glass-horizon', 't-electric-feel'];
+    return [];
   });
 
   const [downloadedTrackIds, setDownloadedTrackIds] = useState<string[]>(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('icee_streams_state_v1');
+      const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.downloadedTrackIds)) return parsed.downloadedTrackIds;
@@ -148,34 +133,23 @@ export default function App() {
     } catch {
       // ignore
     }
-    return ['t-midnight-drive', 't-lost-echoes', 't-electric-feel'];
-  });
-
-  const [localTracks, setLocalTracks] = useState<Track[]>([]);
-  const [onlineTracks, setOnlineTracks] = useState<Track[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.onlineTracks)) return parsed.onlineTracks;
-      }
-    } catch {
-      // ignore
-    }
     return [];
   });
 
-  const [cachedStreams, setCachedStreams] = useState<CachedStreamEntry[]>(() =>
-    getCachedStreamEntries()
-  );
-
+  const [localTracks, setLocalTracks] = useState<Track[]>([]);
+  const [isLibraryLoading, setIsLibraryLoading] = useState<boolean>(true);
+  const [isScanningLocal, setIsScanningLocal] = useState<boolean>(false);
+  const [pullOffset, setPullOffset] = useState<number>(0);
+  const [isPulling, setIsPulling] = useState<boolean>(false);
+  const [isPullRefreshing, setIsPullRefreshing] = useState<boolean>(false);
+  const pullStartYRef = useRef<number | null>(null);
   const [friends, setFriends] = useState<FriendActivity[]>(INITIAL_FRIENDS);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
-  const [currentTrackId, setCurrentTrackId] = useState<string>('t-midnight-drive');
-  const [sourceTitle, setSourceTitle] = useState<string>('Chill Vibes Mix');
+  const [currentTrackId, setCurrentTrackId] = useState<string>('');
+  const [sourceTitle, setSourceTitle] = useState<string>('Local Device');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [progressSec, setProgressSec] = useState<number>(84);
+  const [progressSec, setProgressSec] = useState<number>(0);
   const [volume, setVolume] = useState<number>(0.8);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [shuffle, setShuffle] = useState<boolean>(false);
@@ -185,11 +159,7 @@ export default function App() {
   const [sleepTimerRemainingSec, setSleepTimerRemainingSec] = useState<number>(0);
   const [playNonce, setPlayNonce] = useState<number>(0);
 
-  const [queueTrackIds, setQueueTrackIds] = useState<string[]>([
-    't-glass-horizon',
-    't-lost-echoes',
-    't-electric-feel',
-  ]);
+  const [queueTrackIds, setQueueTrackIds] = useState<string[]>([]);
 
   const [menuTrack, setMenuTrack] = useState<Track | null>(null);
   const [inspectedPlaylist, setInspectedPlaylist] = useState<Playlist | null>(null);
@@ -204,37 +174,31 @@ export default function App() {
     }, 3200);
   }, []);
 
+  // Wipe any leftover legacy stream caches or old server/catalog storage on boot
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+    try {
+      localStorage.removeItem('icee_streams_state_v1');
+      localStorage.removeItem('icee_streams_state_v2');
+    } catch {
+      // ignore
+    }
+    clearAllCachedStreams().catch(() => {});
   }, []);
 
   useEffect(() => {
-    loadSavedLocalTracks().then((saved) => {
-      if (saved.length > 0) {
-        setLocalTracks(saved);
-      }
-    });
+    setIsLibraryLoading(true);
+    loadSavedLocalTracks()
+      .then((saved) => {
+        if (saved.length > 0) {
+          setLocalTracks(saved);
+        }
+      })
+      .finally(() => {
+        setIsLibraryLoading(false);
+      });
   }, []);
 
-  const allKnownTracks = useMemo(() => {
-    const map = new Map<string, Track>();
-    for (const t of TRACKS) map.set(t.id, t);
-    for (const t of onlineTracks) map.set(t.id, t);
-    for (const t of localTracks) map.set(t.id, t);
-    return Array.from(map.values());
-  }, [localTracks, onlineTracks]);
-
-  const visibleTracks = useMemo(() => {
-    const base = [...localTracks, ...TRACKS];
-    return preferences.allowExplicit ? base : base.filter((t) => !t.explicit);
-  }, [localTracks, preferences.allowExplicit]);
+  const allKnownTracks = useMemo(() => localTracks, [localTracks]);
 
   const playlistsWithLocal = useMemo(() => {
     if (localTracks.length === 0) return playlists;
@@ -257,7 +221,7 @@ export default function App() {
       subtitle: `${localTracks.length} audio ${localTracks.length === 1 ? 'file' : 'files'} from your device`,
       category: 'User',
       moodTag: 'Chill',
-      coverUrl: localTracks[0]?.coverUrl || TRACKS[0].coverUrl,
+      coverUrl: localTracks[0]?.coverUrl || COVERS.chillVibes,
       fallbackGradient: 'from-cyan-700 via-purple-900 to-slate-950',
       trackIds: localIds,
       isUserCreated: true,
@@ -265,13 +229,8 @@ export default function App() {
     return [localPlaylist, ...playlists];
   }, [playlists, localTracks]);
 
-  const currentTrack =
-    allKnownTracks.find((t) => t.id === currentTrackId) || TRACKS[0];
-
-  const cachedTrackIds = useMemo(
-    () => cachedStreams.map((entry) => entry.trackId),
-    [cachedStreams]
-  );
+  const currentTrack: Track | null =
+    allKnownTracks.find((t) => t.id === currentTrackId) || null;
 
   useEffect(() => {
     document.body.className = `theme-${preferences.theme} surface-${preferences.surface} min-h-screen`;
@@ -286,19 +245,18 @@ export default function App() {
           playlists,
           likedTrackIds,
           downloadedTrackIds,
-          onlineTracks: onlineTracks.slice(0, 40),
         })
       );
     } catch {
       // ignore storage quota errors
     }
-  }, [preferences, playlists, likedTrackIds, downloadedTrackIds, onlineTracks]);
+  }, [preferences, playlists, likedTrackIds, downloadedTrackIds]);
 
   const handleNextRef = useRef<() => void>(() => {});
   const handlePrevRef = useRef<() => void>(() => {});
   const progressSecRef = useRef<number>(progressSec);
   progressSecRef.current = progressSec;
-  const currentTrackRef = useRef<Track>(currentTrack);
+  const currentTrackRef = useRef<Track | null>(currentTrack);
   currentTrackRef.current = currentTrack;
 
   const playTrackById = (trackId: string, customSource?: string) => {
@@ -322,42 +280,8 @@ export default function App() {
     if (customSource) setSourceTitle(customSource);
   };
 
-  const handleRegisterOnlineTracks = (items: Track[]) => {
-    setOnlineTracks((prev) => {
-      const map = new Map<string, Track>();
-      for (const t of prev) map.set(t.id, t);
-      for (const t of items) map.set(t.id, t);
-      return Array.from(map.values());
-    });
-  };
-
-  const handlePlayOnlineTrack = (track: Track) => {
-    handleRegisterOnlineTracks([track]);
-    if (track.id === currentTrackId) {
-      setIsPlaying((prev) => !prev);
-      return;
-    }
-    setCurrentTrackId(track.id);
-    setSourceTitle(
-      track.source === 'youtube'
-        ? 'YouTube Stream'
-        : track.source === 'google'
-        ? 'Google Stream'
-        : track.source === 'itunes'
-        ? 'iTunes Search'
-        : track.source === 'jamendo'
-        ? 'Jamendo Stream'
-        : track.source === 'custom'
-        ? 'Custom Stream'
-        : 'Audius Stream'
-    );
-    setProgressSec(0);
-    setIsPlaying(true);
-    setPlayNonce((n) => n + 1);
-  };
-
   const handleNext = () => {
-    if (repeatMode === 'one') {
+    if (repeatMode === 'one' && currentTrack) {
       setProgressSec(0);
       globalPlayer.seek(0);
       setIsPlaying(true);
@@ -373,7 +297,11 @@ export default function App() {
       setPlayNonce((n) => n + 1);
       return;
     }
-    const pool = visibleTracks.length > 0 ? visibleTracks : TRACKS;
+    const pool = allKnownTracks;
+    if (pool.length === 0) {
+      setIsPlaying(false);
+      return;
+    }
     if (shuffle && pool.length > 1) {
       const others = pool.filter((t) => t.id !== currentTrackId);
       const pick = others[Math.floor(Math.random() * others.length)];
@@ -410,7 +338,8 @@ export default function App() {
       globalPlayer.seek(0);
       return;
     }
-    const pool = visibleTracks.length > 0 ? visibleTracks : TRACKS;
+    const pool = allKnownTracks;
+    if (pool.length === 0) return;
     const idx = pool.findIndex((t) => t.id === currentTrackId);
     const prevIdx = idx <= 0 ? pool.length - 1 : idx - 1;
     setCurrentTrackId(pool[prevIdx].id);
@@ -421,23 +350,16 @@ export default function App() {
 
   handlePrevRef.current = handlePrevious;
 
-  // Initialize persistent GlobalPlayerService once and hook Media Session callbacks
   useEffect(() => {
     globalPlayer.init({
       onTimeUpdate: (cur, dur) => {
         setProgressSec(Math.floor(cur));
         const active = currentTrackRef.current;
-        if (dur > 0 && Math.abs(active.durationSec - Math.round(dur)) > 2) {
+        if (active && dur > 0 && Math.abs(active.durationSec - Math.round(dur)) > 2) {
           const rounded = Math.round(dur);
-          if (active.source === 'local') {
-            setLocalTracks((prev) =>
-              prev.map((t) => (t.id === active.id ? { ...t, durationSec: rounded } : t))
-            );
-          } else if (isStreamBackedTrack(active)) {
-            setOnlineTracks((prev) =>
-              prev.map((t) => (t.id === active.id ? { ...t, durationSec: rounded } : t))
-            );
-          }
+          setLocalTracks((prev) =>
+            prev.map((t) => (t.id === active.id ? { ...t, durationSec: rounded } : t))
+          );
         }
       },
       onEnded: () => handleNextRef.current(),
@@ -450,17 +372,18 @@ export default function App() {
         globalPlayer.seek(sec);
       },
       onError: (msg) => showFeedback(msg),
-      onStreamCached: () => {
-        setCachedStreams(getCachedStreamEntries());
-      },
     });
   }, [showFeedback]);
 
   const loadedTrackKeyRef = useRef<string | null>(null);
 
-  // Drive globalPlayer play / resume / pause without tearing down audio across screen changes
   useEffect(() => {
     const activeTrack = currentTrackRef.current;
+    if (!activeTrack) {
+      globalPlayer.stopAndReset();
+      return;
+    }
+
     const playOptions = {
       volume,
       isMuted,
@@ -468,9 +391,6 @@ export default function App() {
       eqBands: preferences.eqBands,
       eqBypassed: preferences.eqBypassed,
       crossfadeSec: preferences.crossfadeSec,
-      lowDataMode: preferences.lowDataMode,
-      cacheRecentStreams: preferences.cacheRecentStreams,
-      soundPreview: preferences.soundPreview,
       backgroundPlayback: preferences.backgroundPlayback,
     };
 
@@ -488,7 +408,6 @@ export default function App() {
     }
   }, [isPlaying, currentTrackId, playNonce]);
 
-  // Live update audio parameters (volume, mute, speed, EQ, bypass, background keep-alive)
   useEffect(() => {
     globalPlayer.updateAudioSettings({
       volume,
@@ -496,7 +415,6 @@ export default function App() {
       playbackSpeed,
       eqBands: preferences.eqBands,
       eqBypassed: preferences.eqBypassed,
-      soundPreview: preferences.soundPreview,
       backgroundPlayback: preferences.backgroundPlayback,
     });
   }, [
@@ -505,46 +423,8 @@ export default function App() {
     playbackSpeed,
     preferences.eqBands,
     preferences.eqBypassed,
-    preferences.soundPreview,
     preferences.backgroundPlayback,
   ]);
-
-  // Preload next track in queue when enabled and not in Low-Data Mode
-  useEffect(() => {
-    const nextTrackId = queueTrackIds[0];
-    const nextTrack = nextTrackId
-      ? allKnownTracks.find((t) => t.id === nextTrackId)
-      : undefined;
-    globalPlayer.preloadNextTrack(nextTrack, {
-      lowDataMode: preferences.lowDataMode,
-      preloadNextTrack: preferences.preloadNextTrack,
-      cacheRecentStreams: preferences.cacheRecentStreams,
-    });
-  }, [
-    queueTrackIds,
-    allKnownTracks,
-    preferences.lowDataMode,
-    preferences.preloadNextTrack,
-    preferences.cacheRecentStreams,
-  ]);
-
-  // Simulated timer ONLY for built-in catalog items (local & API streams report real <audio> timeupdate)
-  const isMediaStreamActive = isStreamBackedTrack(currentTrack);
-  useEffect(() => {
-    if (!isPlaying || isMediaStreamActive) return;
-    const interval = window.setInterval(() => {
-      setProgressSec((prev) => {
-        const next = prev + playbackSpeed;
-        globalPlayer.updateMediaPositionState(next, currentTrack.durationSec);
-        if (next >= currentTrack.durationSec) {
-          handleNextRef.current();
-          return 0;
-        }
-        return next;
-      });
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [isPlaying, isMediaStreamActive, playbackSpeed, currentTrack.durationSec]);
 
   // Live countdown Sleep Timer
   useEffect(() => {
@@ -572,31 +452,36 @@ export default function App() {
   };
 
   const handleImportLocalFiles = async (files: File[]) => {
-    const permRes = await requestAndroidAudioAndMediaPermissions(preferences.androidApiProfile);
-    setPreferences((prev) => ({
-      ...prev,
-      localStoragePermission: permRes.storageGranted ? 'granted' : prev.localStoragePermission,
-      notificationPermission: permRes.notificationsState,
-    }));
+    setIsScanningLocal(true);
+    try {
+      const permRes = await requestAndroidAudioAndMediaPermissions(preferences.androidApiProfile);
+      setPreferences((prev) => ({
+        ...prev,
+        localStoragePermission: permRes.storageGranted ? 'granted' : prev.localStoragePermission,
+        notificationPermission: permRes.notificationsState,
+      }));
 
-    const imported = await saveLocalFilesToLibrary(files);
-    if (imported.length === 0) {
-      showFeedback('No supported audio files (MP3, M4A, WAV, FLAC, OGG) found.');
+      const imported = await saveLocalFilesToLibrary(files);
+      if (imported.length === 0) {
+        showFeedback('No supported audio files (MP3, M4A, WAV, FLAC, OGG) found.');
+        setIsPermissionModalOpen(false);
+        return;
+      }
+
+      setLocalTracks((prev) => {
+        const map = new Map<string, Track>();
+        for (const t of imported) map.set(t.id, t);
+        for (const t of prev) if (!map.has(t.id)) map.set(t.id, t);
+        return Array.from(map.values());
+      });
       setIsPermissionModalOpen(false);
-      return;
+      setCurrentScreen('library');
+      showFeedback(
+        `Imported ${imported.length} local audio ${imported.length === 1 ? 'file' : 'files'}`
+      );
+    } finally {
+      setIsScanningLocal(false);
     }
-
-    setLocalTracks((prev) => {
-      const map = new Map<string, Track>();
-      for (const t of imported) map.set(t.id, t);
-      for (const t of prev) if (!map.has(t.id)) map.set(t.id, t);
-      return Array.from(map.values());
-    });
-    setIsPermissionModalOpen(false);
-    setCurrentScreen('library');
-    showFeedback(
-      `Imported ${imported.length} local audio ${imported.length === 1 ? 'file' : 'files'}`
-    );
   };
 
   const handleGrantAndPickFolder = async () => {
@@ -616,26 +501,96 @@ export default function App() {
   };
 
   const handleRescanLocalMusic = async () => {
-    const res = await rescanSavedMusicDirectory();
-    if (res.hasSavedHandle) {
-      if (res.files.length === 0) {
-        showFeedback(`Rescanned "${res.folderName || 'Music'}" · No audio files found`);
+    setIsScanningLocal(true);
+    try {
+      const res = await rescanSavedMusicDirectory();
+      if (res.hasSavedHandle) {
+        if (res.files.length === 0) {
+          showFeedback(`Rescanned "${res.folderName || 'Music'}" · No audio files found`);
+          return;
+        }
+        const imported = await saveLocalFilesToLibrary(res.files);
+        setLocalTracks((prev) => {
+          const map = new Map<string, Track>();
+          for (const t of imported) map.set(t.id, t);
+          for (const t of prev) if (!map.has(t.id)) map.set(t.id, t);
+          return Array.from(map.values());
+        });
+        showFeedback(
+          `Rescanned "${res.folderName || 'Music'}" · Synced ${imported.length} audio tracks`
+        );
         return;
       }
-      const imported = await saveLocalFilesToLibrary(res.files);
-      setLocalTracks((prev) => {
-        const map = new Map<string, Track>();
-        for (const t of imported) map.set(t.id, t);
-        for (const t of prev) if (!map.has(t.id)) map.set(t.id, t);
-        return Array.from(map.values());
-      });
-      showFeedback(
-        `Rescanned "${res.folderName || 'Music'}" · Synced ${imported.length} audio tracks`
-      );
+      setIsPermissionModalOpen(true);
+      showFeedback('Select your music folder to scan audio files.');
+    } finally {
+      setIsScanningLocal(false);
+    }
+  };
+
+  const handlePullRefresh = useCallback(async () => {
+    if (isPullRefreshing) return;
+    setIsPullRefreshing(true);
+    try {
+      const res = await rescanSavedMusicDirectory();
+      if (res.hasSavedHandle && res.files.length > 0) {
+        const imported = await saveLocalFilesToLibrary(res.files);
+        setLocalTracks((prev) => {
+          const map = new Map<string, Track>();
+          for (const t of imported) map.set(t.id, t);
+          for (const t of prev) if (!map.has(t.id)) map.set(t.id, t);
+          return Array.from(map.values());
+        });
+        showFeedback(`Library refreshed · ${imported.length} tracks synced`);
+      } else {
+        const saved = await loadSavedLocalTracks();
+        setLocalTracks(saved);
+        showFeedback('Library refreshed');
+      }
+    } finally {
+      window.setTimeout(() => {
+        setIsPullRefreshing(false);
+        setPullOffset(0);
+      }, 280);
+    }
+  }, [isPullRefreshing, showFeedback]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (
+      window.scrollY > 2 ||
+      isPlayerOpen ||
+      isPermissionModalOpen ||
+      Boolean(inspectedPlaylist) ||
+      Boolean(menuTrack)
+    ) {
+      pullStartYRef.current = null;
       return;
     }
-    setIsPermissionModalOpen(true);
-    showFeedback('Select your music folder to scan audio files.');
+    pullStartYRef.current = e.touches[0]?.clientY ?? null;
+    setIsPulling(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (pullStartYRef.current === null || window.scrollY > 2) return;
+    const currentY = e.touches[0]?.clientY ?? pullStartYRef.current;
+    const deltaY = currentY - pullStartYRef.current;
+    if (deltaY > 0) {
+      const damped = Math.min(88, Math.round(deltaY * 0.42));
+      setPullOffset(damped);
+    } else {
+      setPullOffset(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    pullStartYRef.current = null;
+    setIsPulling(false);
+    if (pullOffset >= 64) {
+      setPullOffset(48);
+      void handlePullRefresh();
+    } else {
+      setPullOffset(0);
+    }
   };
 
   const handleRequestLocalPermissionAction = async () => {
@@ -668,10 +623,13 @@ export default function App() {
 
   const handleRemoveLocalTrack = async (trackId: string) => {
     await removeLocalTrackFromStorage(trackId);
-    setLocalTracks((prev) => prev.filter((t) => t.id !== trackId));
+    const remaining = localTracks.filter((t) => t.id !== trackId);
+    setLocalTracks(remaining);
     if (currentTrackId === trackId) {
       setIsPlaying(false);
-      setCurrentTrackId(TRACKS[0].id);
+      setIsPlayerOpen(false);
+      setProgressSec(0);
+      setCurrentTrackId(remaining[0]?.id || '');
     }
     showFeedback('Removed local audio file from library');
   };
@@ -679,17 +637,15 @@ export default function App() {
   const handleClearLocalTracks = async () => {
     await clearAllLocalTracksFromStorage();
     setLocalTracks([]);
-    if (currentTrack.source === 'local') {
-      setIsPlaying(false);
-      setCurrentTrackId(TRACKS[0].id);
-    }
-    showFeedback('Cleared imported local audio files');
-  };
-
-  const handleClearStreamCache = async () => {
-    await clearAllCachedStreams();
-    setCachedStreams([]);
-    showFeedback('Cleared cached online audio streams');
+    setQueueTrackIds([]);
+    setLikedTrackIds([]);
+    setDownloadedTrackIds([]);
+    setIsPlaying(false);
+    setIsPlayerOpen(false);
+    setProgressSec(0);
+    setCurrentTrackId('');
+    globalPlayer.stopAndReset();
+    showFeedback('Cleared all audio files');
   };
 
   const handlePlayPlaylist = (playlist: Playlist, shouldShuffle = false) => {
@@ -730,7 +686,7 @@ export default function App() {
       showFeedback(
         exists
           ? `Removed offline copy of "${t?.title || 'Track'}"`
-          : `Downloaded "${t?.title || 'Track'}" for offline playback`
+          : `Saved "${t?.title || 'Track'}" to offline list`
       );
       return exists ? prev.filter((id) => id !== trackId) : [trackId, ...prev];
     });
@@ -738,12 +694,12 @@ export default function App() {
 
   const handleDownloadAll = (trackIds: string[]) => {
     setDownloadedTrackIds((prev) => Array.from(new Set([...prev, ...trackIds])));
-    showFeedback(`Saved ${trackIds.length} tracks for offline playback`);
+    showFeedback(`Saved ${trackIds.length} tracks to offline list`);
   };
 
   const handleClearOfflineDownloads = () => {
     setDownloadedTrackIds([]);
-    showFeedback('Cleared all offline downloads');
+    showFeedback('Cleared offline list');
   };
 
   const handlePlayNext = (trackId: string) => {
@@ -755,7 +711,7 @@ export default function App() {
   const handleAddToQueue = (trackId: string) => {
     setQueueTrackIds((prev) => [...prev, trackId]);
     const t = allKnownTracks.find((item) => item.id === trackId);
-    showFeedback(`Added "${t?.title || 'Track'}" to mixed queue`);
+    showFeedback(`Added "${t?.title || 'Track'}" to queue`);
   };
 
   const handleMoveQueueItem = (index: number, direction: 'up' | 'down') => {
@@ -806,7 +762,7 @@ export default function App() {
       subtitle,
       category: 'User',
       moodTag: 'Chill',
-      coverUrl: TRACKS[0].coverUrl,
+      coverUrl: COVERS.chillVibes,
       fallbackGradient: 'from-purple-900 to-slate-950',
       trackIds: initialTrackId ? [initialTrackId] : [],
       isUserCreated: true,
@@ -845,11 +801,7 @@ export default function App() {
   };
 
   const handleShareTrack = (track: Track) => {
-    const url = track.streamUrl
-      ? `${window.location.origin}/?track=${encodeURIComponent(track.id)}&stream=${encodeURIComponent(
-          track.streamUrl
-        )}`
-      : `${window.location.origin}/?track=${encodeURIComponent(track.id)}`;
+    const url = `${window.location.origin}/?track=${encodeURIComponent(track.id)}`;
     navigator.clipboard?.writeText(url).catch(() => {});
     showFeedback(`Copied share link for "${track.title}"`);
   };
@@ -862,10 +814,11 @@ export default function App() {
     <div className="min-h-screen flex flex-col relative">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <AmbientGlow
-          coverUrl={currentTrack.coverUrl}
-          trackKey={currentTrack.id}
-          fallbackGradient={currentTrack.fallbackGradient}
+          coverUrl={currentTrack?.coverUrl || ''}
+          trackKey={currentTrack?.id || 'empty'}
+          fallbackGradient={currentTrack?.fallbackGradient}
           variant="backdrop"
+          isPlaying={isPlaying}
         />
       </div>
 
@@ -875,149 +828,170 @@ export default function App() {
         onToggleAudioDrawer={() => setIsAudioDrawerOpen((v) => !v)}
       />
 
-      <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 pt-5 pb-36 md:pb-28 flex items-start gap-6">
-        <div className="flex-1 min-w-0">
-          {currentScreen === 'home' && (
-            <Home
-              playlists={playlistsWithLocal}
-              tracks={visibleTracks}
-              notifications={notifications}
-              currentTrackId={currentTrackId}
-              isPlaying={isPlaying}
-              likedTrackIds={likedTrackIds}
-              downloadedTrackIds={downloadedTrackIds}
-              density={preferences.density}
-              language={preferences.language}
-              localStoragePermission={preferences.localStoragePermission}
-              onNavigate={setCurrentScreen}
-              onPlayPlaylist={handlePlayPlaylist}
-              onInspectPlaylist={setInspectedPlaylist}
-              onPlayTrack={(id) => playTrackById(id, 'Quick Picks')}
-              onToggleLike={handleToggleLike}
-              onToggleDownload={handleToggleDownload}
-              onOpenTrackMenu={setMenuTrack}
-              onMarkNotificationsRead={() =>
-                setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-              }
-              onRequestLocalPermission={handleRequestLocalPermissionAction}
-              onDenyLocalPermission={handleDenyLocalPermission}
-            />
+      <main
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 pt-5 pb-36 md:pb-28 flex items-start gap-6"
+      >
+        <div
+          className="flex-1 min-w-0"
+          style={{
+            transform: pullOffset > 0 ? `translate3d(0, ${pullOffset}px, 0)` : undefined,
+            transition: isPulling ? 'none' : 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+          }}
+        >
+          {(pullOffset > 12 || isPullRefreshing) && (
+            <div className="flex items-center justify-center gap-2 pb-4 text-xs text-[#F5F5FA]/70">
+              <RefreshCw
+                className={`w-4 h-4 accent-text ${isPullRefreshing ? 'animate-spin' : ''}`}
+              />
+              <span className="label-caps text-[10px]">
+                {isPullRefreshing
+                  ? 'Refreshing library...'
+                  : pullOffset >= 64
+                  ? 'Release to refresh'
+                  : 'Pull to refresh'}
+              </span>
+            </div>
           )}
 
-          {currentScreen === 'search' && (
-            <Search
-              tracks={visibleTracks}
-              playlists={playlistsWithLocal}
-              isOnline={isOnline}
-              lowDataMode={preferences.lowDataMode}
-              cachedTrackIds={cachedTrackIds}
-              currentTrackId={currentTrackId}
-              isPlaying={isPlaying}
-              likedTrackIds={likedTrackIds}
-              downloadedTrackIds={downloadedTrackIds}
-              density={preferences.density}
-              onPlayTrack={(id) => playTrackById(id, 'Search Results')}
-              onPlayOnlineTrack={handlePlayOnlineTrack}
-              onRegisterOnlineTracks={handleRegisterOnlineTracks}
-              onAddToQueue={handleAddToQueue}
-              onToggleLowDataMode={() =>
-                handleUpdatePreferences({ lowDataMode: !preferences.lowDataMode })
-              }
-              onPlayPlaylist={(pl) => handlePlayPlaylist(pl, false)}
-              onInspectPlaylist={setInspectedPlaylist}
-              onToggleLike={handleToggleLike}
-              onToggleDownload={handleToggleDownload}
-              onOpenTrackMenu={setMenuTrack}
-            />
-          )}
+          <div key={currentScreen} className="page-transition">
+            {currentScreen === 'home' && (
+              <Home
+                playlists={playlistsWithLocal}
+                tracks={allKnownTracks}
+                notifications={notifications}
+                currentTrackId={currentTrackId}
+                isPlaying={isPlaying}
+                isLoading={isLibraryLoading}
+                likedTrackIds={likedTrackIds}
+                downloadedTrackIds={downloadedTrackIds}
+                density={preferences.density}
+                localStoragePermission={preferences.localStoragePermission}
+                onNavigate={setCurrentScreen}
+                onPlayPlaylist={handlePlayPlaylist}
+                onInspectPlaylist={setInspectedPlaylist}
+                onPlayTrack={(id) => playTrackById(id, 'Local Device')}
+                onToggleLike={handleToggleLike}
+                onToggleDownload={handleToggleDownload}
+                onOpenTrackMenu={setMenuTrack}
+                onMarkNotificationsRead={() =>
+                  setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+                }
+                onRequestLocalPermission={handleRequestLocalPermissionAction}
+                onDenyLocalPermission={handleDenyLocalPermission}
+              />
+            )}
 
-          {currentScreen === 'library' && (
-            <Library
-              tracks={allKnownTracks}
-              localTracks={localTracks}
-              cachedStreams={cachedStreams}
-              playlists={playlistsWithLocal}
-              likedTrackIds={likedTrackIds}
-              downloadedTrackIds={downloadedTrackIds}
-              currentTrackId={currentTrackId}
-              isPlaying={isPlaying}
-              preferences={preferences}
-              onPlayTrack={(id) => playTrackById(id, 'Your Library')}
-              onAddToQueue={handleAddToQueue}
-              onPlayPlaylist={(pl) => handlePlayPlaylist(pl, false)}
-              onInspectPlaylist={setInspectedPlaylist}
-              onToggleLike={handleToggleLike}
-              onToggleDownload={handleToggleDownload}
-              onOpenTrackMenu={setMenuTrack}
-              onCreatePlaylist={(title, subtitle) => handleCreatePlaylist(title, subtitle)}
-              onClearOfflineDownloads={handleClearOfflineDownloads}
-              onClearStreamCache={handleClearStreamCache}
-              onUpdatePreferences={handleUpdatePreferences}
-              onRequestLocalPermission={handleRequestLocalPermissionAction}
-              onRescanLocalMusic={handleRescanLocalMusic}
-              onPickFolderFallback={handleImportLocalFiles}
-              onRemoveLocalTrack={handleRemoveLocalTrack}
-              onClearLocalTracks={handleClearLocalTracks}
-            />
-          )}
+            {currentScreen === 'search' && (
+              <Search
+                tracks={allKnownTracks}
+                playlists={playlistsWithLocal}
+                currentTrackId={currentTrackId}
+                isPlaying={isPlaying}
+                isLoading={isLibraryLoading}
+                likedTrackIds={likedTrackIds}
+                downloadedTrackIds={downloadedTrackIds}
+                density={preferences.density}
+                onPlayTrack={(id) => playTrackById(id, 'Search Results')}
+                onPlayPlaylist={(pl) => handlePlayPlaylist(pl, false)}
+                onInspectPlaylist={setInspectedPlaylist}
+                onToggleLike={handleToggleLike}
+                onToggleDownload={handleToggleDownload}
+                onOpenTrackMenu={setMenuTrack}
+                onOpenLibraryLocal={() => setCurrentScreen('library')}
+              />
+            )}
 
-          {currentScreen === 'social' && (
-            <Social
-              friends={friends}
-              tracks={allKnownTracks}
-              playlists={playlistsWithLocal}
-              currentTrack={currentTrack}
-              queueTracks={queueTracks}
-              theme={preferences.theme}
-              onPlayTrack={(id) => playTrackById(id, 'Friends Activity')}
-              onToggleFollow={(friendId) =>
-                setFriends((prev) =>
-                  prev.map((f) =>
-                    f.id === friendId ? { ...f, isFollowing: !f.isFollowing } : f
+            {currentScreen === 'library' && (
+              <Library
+                tracks={allKnownTracks}
+                localTracks={localTracks}
+                playlists={playlistsWithLocal}
+                likedTrackIds={likedTrackIds}
+                downloadedTrackIds={downloadedTrackIds}
+                currentTrackId={currentTrackId}
+                isPlaying={isPlaying}
+                isLoading={isLibraryLoading}
+                isScanning={isScanningLocal}
+                preferences={preferences}
+                onPlayTrack={(id) => playTrackById(id, 'Your Library')}
+                onAddToQueue={handleAddToQueue}
+                onPlayPlaylist={(pl) => handlePlayPlaylist(pl, false)}
+                onInspectPlaylist={setInspectedPlaylist}
+                onToggleLike={handleToggleLike}
+                onToggleDownload={handleToggleDownload}
+                onOpenTrackMenu={setMenuTrack}
+                onCreatePlaylist={(title, subtitle) => handleCreatePlaylist(title, subtitle)}
+                onClearOfflineDownloads={handleClearOfflineDownloads}
+                onUpdatePreferences={handleUpdatePreferences}
+                onRequestLocalPermission={handleRequestLocalPermissionAction}
+                onRescanLocalMusic={handleRescanLocalMusic}
+                onPickFolderFallback={handleImportLocalFiles}
+                onRemoveLocalTrack={handleRemoveLocalTrack}
+                onClearLocalTracks={handleClearLocalTracks}
+              />
+            )}
+
+            {currentScreen === 'social' && (
+              <Social
+                friends={friends}
+                tracks={allKnownTracks}
+                playlists={playlistsWithLocal}
+                currentTrack={currentTrack}
+                queueTracks={queueTracks}
+                theme={preferences.theme}
+                onPlayTrack={(id) => playTrackById(id, 'Social')}
+                onToggleFollow={(friendId) =>
+                  setFriends((prev) =>
+                    prev.map((f) =>
+                      f.id === friendId ? { ...f, isFollowing: !f.isFollowing } : f
+                    )
                   )
-                )
-              }
-              onAddTrackToPlaylist={handleAddToPlaylist}
-              onInspectPlaylist={setInspectedPlaylist}
-              onShowFeedback={showFeedback}
-            />
-          )}
+                }
+                onAddTrackToPlaylist={handleAddToPlaylist}
+                onInspectPlaylist={setInspectedPlaylist}
+                onShowFeedback={showFeedback}
+              />
+            )}
 
-          {currentScreen === 'settings' && (
-            <Settings
-              preferences={preferences}
-              localTrackCount={localTracks.length}
-              cachedStreamCount={cachedStreams.length}
-              onUpdatePreferences={handleUpdatePreferences}
-              onSelectEqPreset={handleSelectEqPreset}
-              onChangeEqBand={handleChangeEqBand}
-              onResetEq={handleResetEq}
-              onRequestLocalPermission={handleRequestLocalPermissionAction}
-              onRescanLocalMusic={handleRescanLocalMusic}
-              onRequestNotificationPermission={handleRequestNotificationPermission}
-              onSyncNow={() => {
-                const now = new Date().toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-                handleUpdatePreferences({ lastSynced: `Today at ${now}` });
-                showFeedback('Library and preferences synced to cloud');
-              }}
-              onResetPreferences={() => {
-                setPreferences(DEFAULT_PREFERENCES);
-                showFeedback('Preferences restored to defaults');
-              }}
-            />
-          )}
+            {currentScreen === 'settings' && (
+              <Settings
+                preferences={preferences}
+                localTrackCount={localTracks.length}
+                onUpdatePreferences={handleUpdatePreferences}
+                onSelectEqPreset={handleSelectEqPreset}
+                onChangeEqBand={handleChangeEqBand}
+                onResetEq={handleResetEq}
+                onRequestLocalPermission={handleRequestLocalPermissionAction}
+                onRescanLocalMusic={handleRescanLocalMusic}
+                onRequestNotificationPermission={handleRequestNotificationPermission}
+                onSyncNow={() => {
+                  const now = new Date().toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  handleUpdatePreferences({ lastSynced: `Today at ${now}` });
+                  showFeedback('Preferences saved');
+                }}
+                onResetPreferences={() => {
+                  setPreferences(DEFAULT_PREFERENCES);
+                  showFeedback('Preferences restored to defaults');
+                }}
+              />
+            )}
+          </div>
         </div>
 
         <QueueAudioPanel
           isOpen={isAudioDrawerOpen}
+          isPlaying={isPlaying}
           onClose={() => setIsAudioDrawerOpen(false)}
           currentTrack={currentTrack}
           queueTrackIds={queueTrackIds}
           allTracks={allKnownTracks}
-          cachedTrackIds={cachedTrackIds}
           playbackSpeed={playbackSpeed}
           sleepTimerMinutes={sleepTimerMinutes}
           sleepTimerRemainingSec={sleepTimerRemainingSec}
@@ -1056,15 +1030,15 @@ export default function App() {
         playbackSpeed={playbackSpeed}
         sleepTimerMinutes={sleepTimerMinutes}
         sleepTimerRemainingSec={sleepTimerRemainingSec}
-        isLiked={likedTrackIds.includes(currentTrack.id)}
-        isDownloaded={downloadedTrackIds.includes(currentTrack.id)}
-        isCachedStream={cachedTrackIds.includes(currentTrack.id)}
+        isLiked={currentTrack ? likedTrackIds.includes(currentTrack.id) : false}
+        isDownloaded={currentTrack ? downloadedTrackIds.includes(currentTrack.id) : false}
         queueTracks={queueTracks}
         preferences={preferences}
         onTogglePlay={() => setIsPlaying((p) => !p)}
         onNext={handleNext}
         onPrevious={handlePrevious}
         onSeek={(sec) => {
+          if (!currentTrack) return;
           setProgressSec(sec);
           globalPlayer.seek(sec);
           globalPlayer.updateMediaPositionState(sec, currentTrack.durationSec);
@@ -1143,7 +1117,7 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-16 right-4 z-50 surface-elevated border accent-ring rounded-xl px-4 py-2.5 text-xs font-medium text-white shadow-xl"
+          className="fixed top-16 right-4 z-50 surface-elevated border accent-ring accent-glow-ring rounded-2xl px-4 py-2.5 text-xs font-medium text-[#F5F5FA] shadow-xl page-transition"
         >
           {feedbackMessage}
         </div>

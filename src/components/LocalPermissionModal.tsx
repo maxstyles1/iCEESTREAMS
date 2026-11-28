@@ -41,15 +41,15 @@ export default function LocalPermissionModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-lg surface-elevated rounded-t-3xl sm:rounded-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto"
+        className="w-full sm:max-w-lg surface-elevated rounded-t-3xl sm:rounded-3xl p-6 space-y-5 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl accent-soft-bg accent-text flex items-center justify-center shrink-0">
-              <HardDrive size={22} />
+              <HardDrive size={22} className="icon-glow" />
             </div>
             <div>
-              <h2 className="font-display text-lg font-bold text-white">
+              <h2 className="font-display text-lg font-bold text-[#F5F5FA]">
                 Audio Storage & Background Media Access
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -61,30 +61,30 @@ export default function LocalPermissionModal({
             type="button"
             onClick={onClose}
             aria-label="Close permission dialog"
-            className="min-h-[40px] min-w-[40px] rounded-xl flex items-center justify-center text-slate-400 hover:text-white"
+            className="min-h-[40px] min-w-[40px] rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#F5F5FA]"
           >
             <X size={18} />
           </button>
         </div>
 
-        <p className="text-sm text-slate-300 leading-relaxed">
+        <p className="text-sm font-light text-slate-300 leading-relaxed">
           Allow iCEE Streams to scan audio files on your device (MP3, M4A, WAV, FLAC, OGG) and enable background playback controls on your lock screen and media notifications.
         </p>
 
-        <div className="surface-card rounded-xl p-3.5 space-y-3">
+        <div className="surface-card rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-white flex items-center gap-1.5">
+            <span className="text-xs font-medium text-[#F5F5FA] flex items-center gap-1.5">
               <Smartphone size={14} className="accent-text" />
               <span>Android Storage Permission Target</span>
             </span>
-            <div className="flex items-center p-0.5 bg-black/40 rounded-lg border border-white/10">
+            <div className="flex items-center p-1 bg-black/40 rounded-2xl border border-white/10">
               <button
                 type="button"
                 onClick={() => onChangeAndroidProfile('android13+')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-medium transition-colors ${
                   androidApiProfile === 'android13+'
-                    ? 'accent-bg text-white'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'accent-bg font-semibold'
+                    : 'text-slate-400 hover:text-[#F5F5FA]'
                 }`}
               >
                 Android 13+
@@ -92,10 +92,10 @@ export default function LocalPermissionModal({
               <button
                 type="button"
                 onClick={() => onChangeAndroidProfile('android12-')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-medium transition-colors ${
                   androidApiProfile === 'android12-'
-                    ? 'accent-bg text-white'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'accent-bg font-semibold'
+                    : 'text-slate-400 hover:text-[#F5F5FA]'
                 }`}
               >
                 Android 12 & Older
@@ -161,7 +161,7 @@ export default function LocalPermissionModal({
                 folderInputRef.current?.click();
               }
             }}
-            className="w-full min-h-[46px] px-4 py-2.5 rounded-xl accent-bg text-white text-sm font-medium flex items-center justify-center gap-2"
+            className="w-full min-h-[46px] px-4 py-2.5 rounded-2xl accent-bg text-sm font-semibold flex items-center justify-center gap-2"
           >
             <FolderOpen size={16} />
             <span>Allow {report.audioPermissionName} & Scan Music Folder</span>
@@ -170,7 +170,7 @@ export default function LocalPermissionModal({
           <button
             type="button"
             onClick={() => folderInputRef.current?.click()}
-            className="w-full min-h-[44px] px-4 py-2 rounded-xl surface-card hover:bg-white/5 text-white text-sm font-medium flex items-center justify-center gap-2"
+            className="w-full min-h-[44px] px-4 py-2 rounded-2xl surface-card hover:bg-white/5 text-[#F5F5FA] text-sm font-medium flex items-center justify-center gap-2"
           >
             <FolderOpen size={16} className="accent-text" />
             <span>Folder Picker Fallback</span>
@@ -179,7 +179,7 @@ export default function LocalPermissionModal({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-full min-h-[44px] px-4 py-2 rounded-xl surface-card hover:bg-white/5 text-white text-sm font-medium flex items-center justify-center gap-2"
+            className="w-full min-h-[44px] px-4 py-2 rounded-2xl surface-card hover:bg-white/5 text-[#F5F5FA] text-sm font-medium flex items-center justify-center gap-2"
           >
             <Music2 size={16} className="accent-text" />
             <span>Select Individual Audio Files</span>
@@ -188,7 +188,7 @@ export default function LocalPermissionModal({
           <button
             type="button"
             onClick={onDeny}
-            className="w-full min-h-[44px] px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition-colors"
+            className="w-full min-h-[44px] px-4 py-2 rounded-2xl text-xs font-medium text-slate-400 hover:text-[#F5F5FA] transition-colors"
           >
             Don’t Allow Local Storage Access
           </button>

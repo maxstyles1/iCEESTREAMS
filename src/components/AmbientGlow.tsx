@@ -5,12 +5,14 @@ import {
   deriveFallbackPalette,
   extractAmbientPalette,
 } from '../utils/colorExtractor';
+import { globalPlayer } from '../services/globalPlayerService';
 
 interface AmbientGlowProps {
   coverUrl: string;
   trackKey: string;
   fallbackGradient?: string;
   variant?: 'player' | 'backdrop';
+  isPlaying?: boolean;
 }
 
 export default function AmbientGlow({
@@ -18,16 +20,26 @@ export default function AmbientGlow({
   trackKey,
   fallbackGradient,
   variant = 'player',
+  isPlaying = false,
 }: AmbientGlowProps) {
   const [slots, setSlots] = useState<[AmbientPalette, AmbientPalette]>(() => {
-    const initial = deriveFallbackPalette(trackKey, fallbackGradient);
+    const initial =
+      trackKey === 'empty'
+        ? DEFAULT_PALETTE
+        : deriveFallbackPalette(trackKey, fallbackGradient);
     return [initial, DEFAULT_PALETTE];
   });
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
+  const [audioBoost, setAudioBoost] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    extractAmbientPalette(coverUrl, trackKey, fallbackGradient).then((nextPalette) => {
+    const promise =
+      trackKey === 'empty' && !coverUrl
+        ? Promise.resolve(DEFAULT_PALETTE)
+        : extractAmbientPalette(coverUrl, trackKey, fallbackGradient);
+
+    promise.then((nextPalette) => {
       if (cancelled) return;
       setActiveSlot((current) => {
         const nextSlot: 0 | 1 = current === 0 ? 1 : 0;
@@ -45,8 +57,20 @@ export default function AmbientGlow({
     };
   }, [coverUrl, trackKey, fallbackGradient]);
 
-  const baseOpacity = variant === 'player' ? 0.26 : 0.14;
-  const secondaryOpacity = variant === 'player' ? 0.2 : 0.1;
+  useEffect(() => {
+    if (!isPlaying) {
+      setAudioBoost(0);
+      return;
+    }
+    const timer = window.setInterval(() => {
+      const energy = globalPlayer.getAudioEnergy();
+      setAudioBoost(energy);
+    }, 180);
+    return () => window.clearInterval(timer);
+  }, [isPlaying]);
+
+  const baseOpacity = (variant === 'player' ? 0.28 : 0.14) + audioBoost * 0.08;
+  const secondaryOpacity = (variant === 'player' ? 0.22 : 0.1) + audioBoost * 0.06;
 
   return (
     <div
@@ -60,7 +84,7 @@ export default function AmbientGlow({
         return (
           <div
             key={slotIdx}
-            className="absolute inset-0 transition-opacity duration-[2800ms] ease-in-out"
+            className="absolute inset-0 transition-opacity duration-[2600ms] ease-in-out"
             style={{ opacity: isActive ? 1 : 0 }}
           >
             <div

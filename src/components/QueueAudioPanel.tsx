@@ -16,14 +16,16 @@ import {
 import { EqBands, EqPresetId, Track, UserPreferences } from '../types';
 import { EQ_PRESETS, formatDuration } from '../data/catalog';
 import CoverArt from './CoverArt';
+import EqualizerBars from './EqualizerBars';
+import EmptyState from './EmptyState';
 
 interface QueueAudioPanelProps {
   isOpen: boolean;
+  isPlaying: boolean;
   onClose?: () => void;
-  currentTrack: Track;
+  currentTrack: Track | null;
   queueTrackIds: string[];
   allTracks: Track[];
-  cachedTrackIds: string[];
   playbackSpeed: number;
   sleepTimerMinutes: number;
   sleepTimerRemainingSec: number;
@@ -44,22 +46,16 @@ interface QueueAudioPanelProps {
 
 function formatSourceLabel(source?: Track['source']): string {
   if (source === 'local') return 'Local';
-  if (source === 'youtube') return 'YouTube';
-  if (source === 'google') return 'Google';
-  if (source === 'audius') return 'Audius';
-  if (source === 'jamendo') return 'Jamendo';
-  if (source === 'itunes') return 'iTunes';
-  if (source === 'custom') return 'Custom URL';
-  return 'Catalog';
+  return 'Device';
 }
 
 export default function QueueAudioPanel({
   isOpen,
+  isPlaying,
   onClose,
   currentTrack,
   queueTrackIds,
   allTracks,
-  cachedTrackIds,
   playbackSpeed,
   sleepTimerMinutes,
   sleepTimerRemainingSec,
@@ -85,23 +81,23 @@ export default function QueueAudioPanel({
 
   const content = (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10">
-        <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/10 flex-1">
+      <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#F5F5FA]/10">
+        <div className="flex items-center gap-1.5 p-1 bg-black/40 rounded-2xl border border-[#F5F5FA]/10 flex-1">
           <button
             type="button"
             onClick={() => setTab('audio')}
-            className={`flex-1 min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors ${
-              tab === 'audio' ? 'accent-bg text-white' : 'text-slate-400 hover:text-white'
+            className={`flex-1 min-h-[38px] px-3 py-1.5 rounded-2xl label-caps text-[10px] flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors ${
+              tab === 'audio' ? 'accent-bg animate-tab-bounce' : 'text-slate-400 hover:text-[#F5F5FA]'
             }`}
           >
             <Sliders size={14} />
-            <span>Audio & Queue</span>
+            <span>Audio & EQ</span>
           </button>
           <button
             type="button"
             onClick={() => setTab('queue')}
-            className={`flex-1 min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors ${
-              tab === 'queue' ? 'accent-bg text-white' : 'text-slate-400 hover:text-white'
+            className={`flex-1 min-h-[38px] px-3 py-1.5 rounded-2xl label-caps text-[10px] flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors ${
+              tab === 'queue' ? 'accent-bg animate-tab-bounce' : 'text-slate-400 hover:text-[#F5F5FA]'
             }`}
           >
             <ListMusic size={14} />
@@ -180,10 +176,10 @@ export default function QueueAudioPanel({
                     key={presetKey}
                     type="button"
                     onClick={() => onSelectEqPreset(presetKey)}
-                    className={`min-h-[38px] px-2 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    className={`min-h-[38px] px-2 py-1.5 rounded-2xl text-xs font-medium whitespace-nowrap transition-colors ${
                       active
                         ? 'accent-soft-bg accent-text border accent-ring'
-                        : 'surface-elevated text-slate-300 hover:text-white'
+                        : 'surface-elevated text-slate-300 hover:text-[#F5F5FA]'
                     }`}
                   >
                     {EQ_PRESETS[presetKey].label}
@@ -229,10 +225,10 @@ export default function QueueAudioPanel({
                   key={speed}
                   type="button"
                   onClick={() => onChangeSpeed(speed)}
-                  className={`min-h-[38px] rounded-lg text-xs font-mono tabular-nums font-medium transition-colors ${
+                  className={`min-h-[38px] rounded-2xl text-xs font-mono tabular-nums font-medium transition-colors ${
                     playbackSpeed === speed
-                      ? 'accent-bg text-white'
-                      : 'surface-elevated text-slate-300 hover:text-white'
+                      ? 'accent-bg'
+                      : 'surface-elevated text-slate-300 hover:text-[#F5F5FA]'
                   }`}
                 >
                   {speed}x
@@ -258,10 +254,10 @@ export default function QueueAudioPanel({
                   key={mins}
                   type="button"
                   onClick={() => onChangeSleepTimer(mins)}
-                  className={`min-h-[38px] rounded-lg text-xs font-mono tabular-nums font-medium transition-colors ${
+                  className={`min-h-[38px] rounded-2xl text-xs font-mono tabular-nums font-medium transition-colors ${
                     sleepTimerMinutes === mins
-                      ? 'accent-bg text-white'
-                      : 'surface-elevated text-slate-300 hover:text-white'
+                      ? 'accent-bg'
+                      : 'surface-elevated text-slate-300 hover:text-[#F5F5FA]'
                   }`}
                 >
                   {mins === 0 ? 'Off' : `${mins}m`}
@@ -278,10 +274,10 @@ export default function QueueAudioPanel({
                   key={sec}
                   type="button"
                   onClick={() => onUpdatePreferences({ crossfadeSec: sec })}
-                  className={`min-h-[38px] rounded-lg text-xs font-mono tabular-nums font-medium transition-colors ${
+                  className={`min-h-[38px] rounded-2xl text-xs font-mono tabular-nums font-medium transition-colors ${
                     preferences.crossfadeSec === sec
-                      ? 'accent-bg text-white'
-                      : 'surface-elevated text-slate-300 hover:text-white'
+                      ? 'accent-bg'
+                      : 'surface-elevated text-slate-300 hover:text-[#F5F5FA]'
                   }`}
                 >
                   {sec === 0 ? 'Off' : `${sec}s`}
@@ -378,29 +374,40 @@ export default function QueueAudioPanel({
         </div>
       ) : (
         <div className="pt-4 flex-1 flex flex-col overflow-hidden">
-          <div className="mb-3 pb-3 border-b border-white/10">
-            <p className="text-[11px] text-slate-400 mb-2">Now Playing</p>
-            <div className="flex items-center gap-3">
-              <CoverArt
-                src={currentTrack.coverUrl}
-                alt={currentTrack.title}
-                fallbackGradient={currentTrack.fallbackGradient}
-                className="w-10 h-10 rounded-lg"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold accent-text truncate">{currentTrack.title}</p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {currentTrack.artist} · {formatSourceLabel(currentTrack.source)}
-                </p>
+          <div className="mb-3 pb-3 border-b border-[#F5F5FA]/10">
+            <p className="label-caps text-[10px] accent-text mb-2">Now Playing</p>
+            {currentTrack ? (
+              <div className="flex items-center gap-3">
+                <CoverArt
+                  src={currentTrack.coverUrl}
+                  alt={currentTrack.title}
+                  fallbackGradient={currentTrack.fallbackGradient}
+                  glow={true}
+                  glowSeed={currentTrack.id}
+                  className="w-12 h-12 rounded-2xl"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <EqualizerBars active={isPlaying} />
+                    <p className="font-display text-xs font-bold accent-text truncate">
+                      {currentTrack.title}
+                    </p>
+                  </div>
+                  <p className="text-[11px] font-light text-slate-400 truncate mt-0.5">
+                    {currentTrack.artist} · {formatSourceLabel(currentTrack.source)}
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono tabular-nums text-slate-400">
+                  {formatDuration(currentTrack.durationSec)}
+                </span>
               </div>
-              <span className="text-[11px] font-mono tabular-nums text-slate-400">
-                {formatDuration(currentTrack.durationSec)}
-              </span>
-            </div>
+            ) : (
+              <p className="text-xs font-light text-slate-400">No track playing</p>
+            )}
           </div>
 
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-slate-300">Mixed Up Next Queue</p>
+            <p className="label-caps text-[10px] text-slate-400">Up Next Queue</p>
             {queueTracks.length > 0 && (
               <button
                 type="button"
@@ -412,71 +419,73 @@ export default function QueueAudioPanel({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             {queueTracks.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-400">
-                Queue is empty. Mix local device files and online tracks from Search or Library.
-              </div>
+              <EmptyState
+                illustration="queue"
+                title="Queue is empty"
+                description="Add imported local songs from Library or Search."
+              />
             ) : (
-              queueTracks.map((track, idx) => {
-                const isCached = cachedTrackIds.includes(track.id);
-                return (
-                  <div
-                    key={`${track.id}-${idx}`}
-                    className="surface-elevated rounded-xl p-2 flex items-center gap-2.5"
+              queueTracks.map((track, idx) => (
+                <div
+                  key={`${track.id}-${idx}`}
+                  className="surface-elevated rounded-2xl p-2.5 flex items-center gap-2.5"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onPlayFromQueue(track.id)}
+                    aria-label={`Play ${track.title}`}
+                    className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
                   >
+                    <CoverArt
+                      src={track.coverUrl}
+                      alt={track.title}
+                      fallbackGradient={track.fallbackGradient}
+                      glow={true}
+                      glowSeed={track.id}
+                      className="w-11 h-11 rounded-2xl"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-[#F5F5FA] truncate">
+                        {track.title}
+                      </p>
+                      <p className="text-[11px] font-light text-slate-400 truncate">
+                        {track.artist} · {formatSourceLabel(track.source)}
+                      </p>
+                    </div>
+                  </button>
+
+                  <div className="flex items-center gap-0.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => onPlayFromQueue(track.id)}
-                      aria-label={`Play ${track.title}`}
-                      className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                      onClick={() => onMoveQueueItem(idx, 'up')}
+                      disabled={idx === 0}
+                      aria-label={`Move ${track.title} up`}
+                      className="min-h-[36px] min-w-[32px] flex items-center justify-center text-slate-400 hover:text-[#F5F5FA] disabled:opacity-30"
                     >
-                      <CoverArt
-                        src={track.coverUrl}
-                        alt={track.title}
-                        fallbackGradient={track.fallbackGradient}
-                        className="w-9 h-9 rounded-lg"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-white truncate">{track.title}</p>
-                        <p className="text-[11px] text-slate-400 truncate">
-                          {track.artist} · {formatSourceLabel(track.source)}
-                          {isCached ? ' · Cached' : ''}
-                        </p>
-                      </div>
+                      <ArrowUp size={14} />
                     </button>
-
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => onMoveQueueItem(idx, 'up')}
-                        disabled={idx === 0}
-                        aria-label={`Move ${track.title} up`}
-                        className="min-h-[36px] min-w-[32px] flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-30"
-                      >
-                        <ArrowUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onMoveQueueItem(idx, 'down')}
-                        disabled={idx === queueTracks.length - 1}
-                        aria-label={`Move ${track.title} down`}
-                        className="min-h-[36px] min-w-[32px] flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-30"
-                      >
-                        <ArrowDown size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveFromQueue(idx)}
-                        aria-label={`Remove ${track.title} from queue`}
-                        className="min-h-[36px] min-w-[32px] flex items-center justify-center text-slate-400 hover:text-rose-400"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onMoveQueueItem(idx, 'down')}
+                      disabled={idx === queueTracks.length - 1}
+                      aria-label={`Move ${track.title} down`}
+                      className="min-h-[36px] min-w-[32px] flex items-center justify-center text-slate-400 hover:text-[#F5F5FA] disabled:opacity-30"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveFromQueue(idx)}
+                      aria-label={`Remove ${track.title} from queue`}
+                      className="min-h-[36px] min-w-[32px] flex items-center justify-center text-slate-400 hover:text-rose-400"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </div>
         </div>
@@ -486,7 +495,7 @@ export default function QueueAudioPanel({
 
   return (
     <>
-      <aside className="hidden xl:flex xl:w-80 shrink-0 surface-card rounded-2xl p-4 h-[calc(100vh-148px)] sticky top-20 flex-col">
+      <aside className="hidden xl:flex xl:w-80 shrink-0 surface-card rounded-3xl p-4 h-[calc(100vh-148px)] sticky top-20 flex-col">
         {content}
       </aside>
 
@@ -499,7 +508,7 @@ export default function QueueAudioPanel({
           aria-label="Audio Options and Queue"
         >
           <div
-            className="w-full max-w-sm surface-elevated h-full p-5 flex flex-col"
+            className="w-full max-w-sm surface-elevated h-full p-5 flex flex-col rounded-l-3xl"
             onClick={(e) => e.stopPropagation()}
           >
             {content}

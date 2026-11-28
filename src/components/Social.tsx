@@ -16,12 +16,13 @@ import {
 import { FriendActivity, Playlist, ThemeId, Track } from '../types';
 import { formatDuration } from '../data/catalog';
 import CoverArt from './CoverArt';
+import EmptyState from './EmptyState';
 
 interface SocialProps {
   friends: FriendActivity[];
   tracks: Track[];
   playlists: Playlist[];
-  currentTrack: Track;
+  currentTrack: Track | null;
   queueTracks: Track[];
   theme: ThemeId;
   onPlayTrack: (trackId: string) => void;
@@ -53,13 +54,7 @@ const VIBE_OPTIONS = [
 
 function sourceShort(source?: Track['source']): string {
   if (source === 'local') return 'Local';
-  if (source === 'youtube') return 'YouTube';
-  if (source === 'google') return 'Google';
-  if (source === 'audius') return 'Audius';
-  if (source === 'itunes') return 'iTunes';
-  if (source === 'jamendo') return 'Jamendo';
-  if (source === 'custom') return 'Custom';
-  return 'Catalog';
+  return 'Device';
 }
 
 export default function Social({
@@ -85,34 +80,10 @@ export default function Social({
 
   const [selectedVibeId, setSelectedVibeId] = useState<string>(VIBE_OPTIONS[0].id);
   const [includeQueueInCard, setIncludeQueueInCard] = useState(true);
-  const [vibeCaption, setVibeCaption] = useState('Late-night rotation on iCEE Streams');
+  const [vibeCaption, setVibeCaption] = useState('Listening on iCEE Streams');
   const [copiedVibeLink, setCopiedVibeLink] = useState(false);
 
-  const [activityFeed, setActivityFeed] = useState<ActivityEntry[]>([
-    {
-      id: 'act-1',
-      actor: 'Ava_Music',
-      action: 'added to rotation',
-      trackId: 't-glass-horizon',
-      note: 'Best late-night R&B mix this month.',
-      timeAgo: '8m ago',
-    },
-    {
-      id: 'act-2',
-      actor: 'JAYSON',
-      action: 'shared a vibe card',
-      trackId: 't-midnight-drive',
-      vibeLabel: 'Late Night Drive',
-      timeAgo: '24m ago',
-    },
-    {
-      id: 'act-3',
-      actor: 'Luna.exe',
-      action: 'updated Late Night Collab',
-      trackId: 't-sable-clair',
-      timeAgo: '1h ago',
-    },
-  ]);
+  const [activityFeed, setActivityFeed] = useState<ActivityEntry[]>([]);
 
   const followedFriends = friends.filter((f) => f.isFollowing);
   const collabPlaylists = playlists.filter((p) => p.category === 'Collaborative');
@@ -121,6 +92,7 @@ export default function Social({
 
   const handleShareSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentTrack) return;
     if (shareTarget === 'collab' && collabPlaylists[0]) {
       onAddTrackToPlaylist(collabPlaylists[0].id, currentTrack.id);
     }
@@ -149,6 +121,7 @@ export default function Social({
   };
 
   const handleCopyLink = () => {
+    if (!currentTrack) return;
     const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(currentTrack.id)}`;
     navigator.clipboard?.writeText(shareUrl).catch(() => {});
     setCopiedLink(true);
@@ -157,6 +130,7 @@ export default function Social({
   };
 
   const handleCopyVibeLink = () => {
+    if (!currentTrack) return;
     const params = new URLSearchParams({
       track: currentTrack.id,
       vibe: activeVibe.id,
@@ -172,6 +146,7 @@ export default function Social({
   };
 
   const handlePostVibeCardToFeed = () => {
+    if (!currentTrack) return;
     setActivityFeed((prev) => [
       {
         id: `act-${Date.now()}`,
@@ -189,6 +164,7 @@ export default function Social({
   };
 
   const handleDownloadVibePng = () => {
+    if (!currentTrack) return;
     const canvas = document.createElement('canvas');
     canvas.width = 1080;
     canvas.height = 1080;
@@ -238,7 +214,7 @@ export default function Social({
     ctx.fillStyle = '#94A3B8';
     ctx.font = '600 22px sans-serif';
     ctx.fillText(
-      cardQueuePreview.length > 0 ? 'UP NEXT MIXED QUEUE' : 'CURRENT VIBE SNAPSHOT',
+      cardQueuePreview.length > 0 ? 'UP NEXT QUEUE' : 'CURRENT VIBE SNAPSHOT',
       112,
       446
     );
@@ -293,15 +269,15 @@ export default function Social({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-white">Social</h1>
-          <p className="text-slate-400 text-sm mt-0.5">
+          <h1 className="font-display text-2xl font-extrabold text-[#F5F5FA]">Social</h1>
+          <p className="text-slate-400 text-sm font-light mt-0.5">
             Listen along, share queue vibe cards, and build collaborative playlists
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowAddFriends(true)}
-          className="min-h-[44px] px-4 py-2 rounded-xl accent-bg text-white text-xs font-medium flex items-center gap-1.5 whitespace-nowrap shrink-0"
+          className="min-h-[44px] px-4 py-2 rounded-2xl accent-bg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0"
         >
           <UserPlus size={15} />
           <span>Find Friends</span>
@@ -311,14 +287,14 @@ export default function Social({
       <div
         role="tablist"
         aria-label="Social view"
-        className="flex flex-wrap items-center gap-1.5 p-1 surface-card rounded-xl w-fit"
+        className="flex flex-wrap items-center gap-1.5 p-1.5 surface-card rounded-2xl w-fit"
       >
         {(
           [
             { id: 'friends', label: 'Friends' },
-            { id: 'vibecard', label: 'Queue & Vibe Cards' },
+            { id: 'vibecard', label: 'Vibe Cards' },
             { id: 'foryou', label: 'For You' },
-            { id: 'activity', label: 'Activity Feed' },
+            { id: 'activity', label: 'Activity' },
           ] as { id: SocialTab; label: string }[]
         ).map((tab) => (
           <button
@@ -327,10 +303,10 @@ export default function Social({
             role="tab"
             aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`min-h-[38px] px-4 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+            className={`min-h-[38px] px-4 py-1.5 rounded-2xl label-caps text-[10px] whitespace-nowrap transition-colors ${
               activeTab === tab.id
-                ? 'accent-bg text-white'
-                : 'text-slate-400 hover:text-white'
+                ? 'accent-bg animate-tab-bounce'
+                : 'text-slate-400 hover:text-[#F5F5FA]'
             }`}
           >
             {tab.label}
@@ -341,8 +317,8 @@ export default function Social({
       {activeTab === 'friends' && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Headphones size={15} className="accent-text" />
+            <h2 className="text-sm font-semibold text-[#F5F5FA] flex items-center gap-2">
+              <Headphones size={15} className="accent-text icon-glow" />
               <span>Friends Listening Now</span>
             </h2>
             <span className="text-xs font-mono tabular-nums text-slate-400">
@@ -350,61 +326,76 @@ export default function Social({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {followedFriends.map((friend) => {
-              const friendTrack = tracks.find((t) => t.id === friend.trackId);
-              return (
-                <div
-                  key={friend.id}
-                  className="surface-card rounded-2xl p-3.5 flex flex-col justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full accent-gradient p-0.5 shrink-0">
-                      <div className="w-full h-full rounded-full bg-[var(--surface-bg)] flex items-center justify-center text-xs font-bold text-white">
-                        {friend.initials}
+          {followedFriends.length === 0 ? (
+            <EmptyState
+              illustration="social"
+              title="No friends connected yet"
+              description="Add friends or share a Queue & Vibe Card snapshot from your current listening session."
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {followedFriends.map((friend) => {
+                const friendTrack = tracks.find((t) => t.id === friend.trackId);
+                return (
+                  <div
+                    key={friend.id}
+                    className="surface-card rounded-2xl p-3.5 flex flex-col justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full accent-gradient p-0.5 shrink-0">
+                        <div className="w-full h-full rounded-full bg-[var(--surface-bg)] flex items-center justify-center text-xs font-bold text-white">
+                          {friend.initials}
+                        </div>
                       </div>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{friend.handle}</p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {friend.status} · {friend.updatedAt}
-                      </p>
-                    </div>
-                  </div>
-
-                  {friendTrack && (
-                    <div className="surface-elevated rounded-xl p-2.5 flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-white truncate">{friendTrack.title}</p>
-                        <p className="text-[11px] text-slate-400 truncate">{friendTrack.artist}</p>
+                        <p className="text-sm font-semibold text-white truncate">{friend.handle}</p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {friend.status} · {friend.updatedAt}
+                        </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onPlayTrack(friendTrack.id);
-                          onShowFeedback(`Listening along with ${friend.handle}`);
-                        }}
-                        aria-label={`Listen along to ${friendTrack.title} with ${friend.handle}`}
-                        className="min-h-[38px] px-3 py-1.5 rounded-lg accent-soft-bg accent-text text-xs font-medium flex items-center gap-1 shrink-0"
-                      >
-                        <Play size={12} className="fill-current" />
-                        <span>Join</span>
-                      </button>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+
+                    {friendTrack && (
+                      <div className="surface-elevated rounded-xl p-2.5 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-white truncate">{friendTrack.title}</p>
+                          <p className="text-[11px] text-slate-400 truncate">{friendTrack.artist}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onPlayTrack(friendTrack.id);
+                            onShowFeedback(`Listening along with ${friend.handle}`);
+                          }}
+                          aria-label={`Listen along to ${friendTrack.title} with ${friend.handle}`}
+                          className="min-h-[38px] px-3 py-1.5 rounded-lg accent-soft-bg accent-text text-xs font-medium flex items-center gap-1 shrink-0"
+                        >
+                          <Play size={12} className="fill-current" />
+                          <span>Join</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
       {activeTab === 'vibecard' && (
+        !currentTrack ? (
+          <EmptyState
+            illustration="queue"
+            title="Nothing playing for a Vibe Card"
+            description="Play a local song first to generate a shareable Queue & Vibe Card."
+          />
+        ) : (
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="surface-card rounded-2xl p-5 space-y-4">
+          <div className="surface-card rounded-3xl p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles size={17} className="accent-text" />
-              <h2 className="font-display text-base font-semibold text-white">
+              <Sparkles size={17} className="accent-text icon-glow" />
+              <h2 className="font-display text-base font-bold text-[#F5F5FA]">
                 Shareable Queue & Vibe Card
               </h2>
             </div>
@@ -417,10 +408,10 @@ export default function Social({
                     key={v.id}
                     type="button"
                     onClick={() => setSelectedVibeId(v.id)}
-                    className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                    className={`min-h-[36px] px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors ${
                       selectedVibeId === v.id
-                        ? 'accent-bg text-white'
-                        : 'surface-elevated text-slate-300 hover:text-white'
+                        ? 'accent-bg font-semibold'
+                        : 'surface-elevated text-slate-300 hover:text-[#F5F5FA]'
                     }`}
                   >
                     {v.label}
@@ -439,15 +430,15 @@ export default function Social({
                 value={vibeCaption}
                 onChange={(e) => setVibeCaption(e.target.value)}
                 placeholder="Describe this listening session..."
-                className="w-full min-h-[42px] bg-black/45 border border-white/15 rounded-xl px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[var(--accent)]"
+                className="w-full min-h-[42px] bg-black/45 border border-white/15 rounded-2xl px-3 text-xs text-[#F5F5FA] placeholder:text-slate-500 focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
             <label className="flex items-center justify-between min-h-[40px] cursor-pointer">
               <div>
-                <p className="text-xs font-medium text-white">Include Mixed Up Next Queue</p>
+                <p className="text-xs font-medium text-[#F5F5FA]">Include Up Next Queue</p>
                 <p className="text-[11px] text-slate-400">
-                  Shows {Math.min(3, queueTracks.length)} queued local & online tracks
+                  Shows {Math.min(3, queueTracks.length)} queued local tracks
                 </p>
               </div>
               <input
@@ -470,7 +461,7 @@ export default function Social({
               <button
                 type="button"
                 onClick={handleDownloadVibePng}
-                className="min-h-[42px] px-4 py-2 rounded-xl accent-bg text-white text-xs font-medium flex items-center gap-1.5"
+                className="min-h-[42px] px-4 py-2 rounded-2xl accent-bg text-xs font-semibold flex items-center gap-1.5"
               >
                 <Download size={14} />
                 <span>Download Card PNG</span>
@@ -479,7 +470,7 @@ export default function Social({
               <button
                 type="button"
                 onClick={handleCopyVibeLink}
-                className="min-h-[42px] px-3.5 py-2 rounded-xl surface-elevated text-white text-xs font-medium flex items-center gap-1.5"
+                className="min-h-[42px] px-3.5 py-2 rounded-2xl surface-elevated text-[#F5F5FA] text-xs font-medium flex items-center gap-1.5"
               >
                 {copiedVibeLink ? <Check size={14} className="accent-text" /> : <Copy size={14} />}
                 <span>{copiedVibeLink ? 'Link Copied' : 'Copy Queue Link'}</span>
@@ -488,7 +479,7 @@ export default function Social({
               <button
                 type="button"
                 onClick={handlePostVibeCardToFeed}
-                className="min-h-[42px] px-3.5 py-2 rounded-xl surface-elevated text-white text-xs font-medium flex items-center gap-1.5"
+                className="min-h-[42px] px-3.5 py-2 rounded-2xl surface-elevated text-[#F5F5FA] text-xs font-medium flex items-center gap-1.5"
               >
                 <Send size={14} className="accent-text" />
                 <span>Post to Feed</span>
@@ -560,221 +551,249 @@ export default function Social({
             </div>
           </div>
         </section>
+        )
       )}
 
       {activeTab === 'foryou' && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-white">Recommended From Your Circle</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {tracks.slice(3, 7).map((track) => (
-              <div
-                key={track.id}
-                className="surface-card rounded-2xl p-3 flex items-center gap-3"
-              >
-                <CoverArt
-                  src={track.coverUrl}
-                  alt={track.title}
-                  fallbackGradient={track.fallbackGradient}
-                  className="w-12 h-12 rounded-xl"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{track.title}</p>
-                  <p className="text-xs text-slate-400 truncate">
-                    {track.artist} · Popular with friends
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onPlayTrack(track.id)}
-                  aria-label={`Play ${track.title}`}
-                  className="min-h-[40px] min-w-[40px] rounded-xl accent-bg text-white flex items-center justify-center shrink-0"
+          <h2 className="text-sm font-semibold text-[#F5F5FA]">Recommended From Your Library</h2>
+          {tracks.length === 0 ? (
+            <EmptyState
+              illustration="music"
+              title="No tracks loaded yet"
+              description="Import local songs in Library to see your highlights and recommendations here."
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {tracks.slice(0, 4).map((track) => (
+                <div
+                  key={track.id}
+                  className="surface-card rounded-2xl p-3.5 flex items-center gap-3.5"
                 >
-                  <Play size={15} className="fill-white ml-0.5" />
-                </button>
-              </div>
-            ))}
-          </div>
+                  <CoverArt
+                    src={track.coverUrl}
+                    alt={track.title}
+                    fallbackGradient={track.fallbackGradient}
+                    glow={true}
+                    glowSeed={track.id}
+                    className="w-14 h-14 rounded-2xl"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display text-sm font-semibold text-[#F5F5FA] truncate">
+                      {track.title}
+                    </p>
+                    <p className="text-xs font-light text-slate-400 truncate">
+                      {track.artist} · Local Device
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onPlayTrack(track.id)}
+                    aria-label={`Play ${track.title}`}
+                    className="min-h-[42px] min-w-[42px] rounded-2xl accent-bg flex items-center justify-center shrink-0"
+                  >
+                    <Play size={15} className="fill-current ml-0.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
       {activeTab === 'activity' && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-white">Recent Activity</h2>
-          <div className="surface-card rounded-2xl divide-y divide-white/[0.06]">
-            {activityFeed.map((entry) => {
-              const t = tracks.find((item) => item.id === entry.trackId) || currentTrack;
-              return (
-                <div key={entry.id} className="p-3.5 flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <CoverArt
-                      src={t.coverUrl}
-                      alt={t.title}
-                      fallbackGradient={t.fallbackGradient}
-                      className="w-11 h-11 rounded-xl mt-0.5"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm text-white">
-                        <span className="font-semibold">{entry.actor}</span>{' '}
-                        <span className="text-slate-400">{entry.action}</span>{' '}
-                        <span className="font-medium accent-text">{t.title}</span>
-                        {entry.vibeLabel && (
-                          <span className="text-slate-300"> · {entry.vibeLabel}</span>
+          <h2 className="text-sm font-semibold text-[#F5F5FA]">Recent Activity</h2>
+          {activityFeed.length === 0 ? (
+            <EmptyState
+              illustration="social"
+              title="No recent activity yet"
+              description="Share a track or Queue Vibe Card to post updates to your activity feed."
+            />
+          ) : (
+            <div className="surface-card rounded-2xl divide-y divide-white/[0.06]">
+              {activityFeed.map((entry) => {
+                const t = tracks.find((item) => item.id === entry.trackId) || currentTrack;
+                if (!t) return null;
+                return (
+                  <div key={entry.id} className="p-3.5 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <CoverArt
+                        src={t.coverUrl}
+                        alt={t.title}
+                        fallbackGradient={t.fallbackGradient}
+                        className="w-11 h-11 rounded-xl mt-0.5"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm text-white">
+                          <span className="font-semibold">{entry.actor}</span>{' '}
+                          <span className="text-slate-400">{entry.action}</span>{' '}
+                          <span className="font-medium accent-text">{t.title}</span>
+                          {entry.vibeLabel && (
+                            <span className="text-slate-300"> · {entry.vibeLabel}</span>
+                          )}
+                        </p>
+                        {entry.note && (
+                          <p className="text-xs text-slate-300 mt-1">“{entry.note}”</p>
                         )}
-                      </p>
-                      {entry.note && (
-                        <p className="text-xs text-slate-300 mt-1">“{entry.note}”</p>
-                      )}
-                      <p className="text-[11px] text-slate-500 mt-1">{entry.timeAgo}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">{entry.timeAgo}</p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => onPlayTrack(t.id)}
+                      aria-label={`Play ${t.title}`}
+                      className="min-h-[38px] min-w-[38px] rounded-xl surface-elevated text-white flex items-center justify-center shrink-0"
+                    >
+                      <Play size={14} className="fill-white ml-0.5" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onPlayTrack(t.id)}
-                    aria-label={`Play ${t.title}`}
-                    className="min-h-[38px] min-w-[38px] rounded-xl surface-elevated text-white flex items-center justify-center shrink-0"
-                  >
-                    <Play size={14} className="fill-white ml-0.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
-      <section className="surface-card rounded-2xl p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Share What You’re Listening To</h2>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="min-h-[36px] px-3 py-1 rounded-lg surface-elevated text-xs text-slate-300 hover:text-white flex items-center gap-1.5"
-          >
-            {copiedLink ? <Check size={13} className="accent-text" /> : <Copy size={13} />}
-            <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 p-3 surface-elevated rounded-xl">
-          <CoverArt
-            src={currentTrack.coverUrl}
-            alt={currentTrack.title}
-            fallbackGradient={currentTrack.fallbackGradient}
-            className="w-12 h-12 rounded-xl"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="font-medium text-sm text-white truncate">{currentTrack.title}</p>
-            <p className="text-xs text-slate-400 truncate">
-              {currentTrack.artist} · {currentTrack.genre} · {sourceShort(currentTrack.source)}
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleShareSubmit} className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { id: 'feed', label: 'Post to Feed' },
-                { id: 'dm', label: 'Send to Friend' },
-                { id: 'collab', label: 'Add to Collab Playlist' },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setShareTarget(opt.id)}
-                className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                  shareTarget === opt.id
-                    ? 'accent-soft-bg accent-text border accent-ring'
-                    : 'surface-elevated text-slate-300 hover:text-white'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {shareTarget === 'dm' && (
-            <div>
-              <label htmlFor="share-friend-select" className="text-xs text-slate-400 block mb-1">
-                Recipient
-              </label>
-              <select
-                id="share-friend-select"
-                value={selectedFriendId}
-                onChange={(e) => setSelectedFriendId(e.target.value)}
-                className="w-full min-h-[42px] bg-black/40 border border-white/15 rounded-xl px-3 text-xs text-white focus:outline-none"
-              >
-                {friends.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.handle} ({f.displayName})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={shareNote}
-              onChange={(e) => setShareNote(e.target.value)}
-              placeholder="Add an optional note..."
-              aria-label="Optional note"
-              className="flex-1 min-h-[44px] bg-black/40 border border-white/15 rounded-xl px-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[var(--accent)]"
-            />
+      {currentTrack && (
+        <section className="surface-card rounded-2xl p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white">Share What You’re Listening To</h2>
             <button
-              type="submit"
-              className="min-h-[44px] px-5 py-2 rounded-xl accent-bg text-white text-sm font-medium flex items-center gap-2 whitespace-nowrap shrink-0"
+              type="button"
+              onClick={handleCopyLink}
+              className="min-h-[36px] px-3 py-1 rounded-lg surface-elevated text-xs text-slate-300 hover:text-white flex items-center gap-1.5"
             >
-              <Send size={15} />
-              <span>Share</span>
+              {copiedLink ? <Check size={13} className="accent-text" /> : <Copy size={13} />}
+              <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
             </button>
           </div>
-        </form>
-      </section>
 
-      <section className="space-y-3">
-        <h2 className="font-display text-lg font-semibold text-white">Collaborative Playlists</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {collabPlaylists.map((pl) => (
-            <div
-              key={pl.id}
-              className="surface-card rounded-2xl p-3.5 flex items-center justify-between gap-3"
-            >
+          <div className="flex items-center gap-3 p-3 surface-elevated rounded-xl">
+            <CoverArt
+              src={currentTrack.coverUrl}
+              alt={currentTrack.title}
+              fallbackGradient={currentTrack.fallbackGradient}
+              className="w-12 h-12 rounded-xl"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm text-white truncate">{currentTrack.title}</p>
+              <p className="text-xs text-slate-400 truncate">
+                {currentTrack.artist} · {currentTrack.genre} · {sourceShort(currentTrack.source)}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleShareSubmit} className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: 'feed', label: 'Post to Feed' },
+                  { id: 'dm', label: 'Send to Friend' },
+                  { id: 'collab', label: 'Add to Collab Playlist' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setShareTarget(opt.id)}
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                    shareTarget === opt.id
+                      ? 'accent-soft-bg accent-text border accent-ring'
+                      : 'surface-elevated text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {shareTarget === 'dm' && (
+              <div>
+                <label htmlFor="share-friend-select" className="text-xs text-slate-400 block mb-1">
+                  Recipient
+                </label>
+                <select
+                  id="share-friend-select"
+                  value={selectedFriendId}
+                  onChange={(e) => setSelectedFriendId(e.target.value)}
+                  className="w-full min-h-[42px] bg-black/40 border border-white/15 rounded-xl px-3 text-xs text-white focus:outline-none"
+                >
+                  {friends.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.handle} ({f.displayName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={shareNote}
+                onChange={(e) => setShareNote(e.target.value)}
+                placeholder="Add an optional note..."
+                aria-label="Optional note"
+                className="flex-1 min-h-[44px] bg-black/40 border border-white/15 rounded-xl px-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[var(--accent)]"
+              />
               <button
-                type="button"
-                onClick={() => onInspectPlaylist(pl)}
-                className="flex items-center gap-3 min-w-0 text-left flex-1"
+                type="submit"
+                className="min-h-[44px] px-5 py-2 rounded-2xl accent-bg text-sm font-semibold flex items-center gap-2 whitespace-nowrap shrink-0"
               >
-                <CoverArt
-                  src={pl.coverUrl}
-                  alt={pl.title}
-                  fallbackGradient={pl.fallbackGradient}
-                  className="w-12 h-12 rounded-xl"
-                />
-                <div className="min-w-0">
-                  <p className="font-medium text-sm text-white truncate">{pl.title}</p>
-                  <p className="text-xs font-mono tabular-nums text-slate-400 mt-0.5">
-                    {pl.trackIds.length} tracks · {pl.collaborators || 2} collaborators
-                  </p>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onAddTrackToPlaylist(pl.id, currentTrack.id);
-                  onShowFeedback(`Added "${currentTrack.title}" to ${pl.title}`);
-                }}
-                className="min-h-[40px] px-3 py-1.5 rounded-xl surface-elevated text-xs font-medium text-white hover:bg-white/10 flex items-center gap-1 shrink-0"
-              >
-                <Plus size={14} className="accent-text" />
-                <span>Add Track</span>
+                <Send size={15} />
+                <span>Share</span>
               </button>
             </div>
-          ))}
-        </div>
-      </section>
+          </form>
+        </section>
+      )}
+
+      {collabPlaylists.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-display text-lg font-semibold text-white">Collaborative Playlists</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {collabPlaylists.map((pl) => (
+              <div
+                key={pl.id}
+                className="surface-card rounded-2xl p-3.5 flex items-center justify-between gap-3"
+              >
+                <button
+                  type="button"
+                  onClick={() => onInspectPlaylist(pl)}
+                  className="flex items-center gap-3 min-w-0 text-left flex-1"
+                >
+                  <CoverArt
+                    src={pl.coverUrl}
+                    alt={pl.title}
+                    fallbackGradient={pl.fallbackGradient}
+                    className="w-12 h-12 rounded-xl"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm text-white truncate">{pl.title}</p>
+                    <p className="text-xs font-mono tabular-nums text-slate-400 mt-0.5">
+                      {pl.trackIds.length} tracks · {pl.collaborators || 2} collaborators
+                    </p>
+                  </div>
+                </button>
+                {currentTrack && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onAddTrackToPlaylist(pl.id, currentTrack.id);
+                      onShowFeedback(`Added "${currentTrack.title}" to ${pl.title}`);
+                    }}
+                    className="min-h-[40px] px-3 py-1.5 rounded-xl surface-elevated text-xs font-medium text-white hover:bg-white/10 flex items-center gap-1 shrink-0"
+                  >
+                    <Plus size={14} className="accent-text" />
+                    <span>Add Track</span>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {showAddFriends && (
         <div

@@ -2,6 +2,7 @@ import { CheckCircle2, Download, Heart, MoreHorizontal, Pause, Play } from 'luci
 import { DensityMode, Track } from '../types';
 import { formatDuration } from '../data/catalog';
 import CoverArt from './CoverArt';
+import EqualizerBars from './EqualizerBars';
 
 interface TrackRowProps {
   track: Track;
@@ -34,12 +35,12 @@ export default function TrackRow({
 
   return (
     <div
-      className={`group flex items-center gap-3 rounded-xl transition-colors ${
-        isCompact ? 'px-2.5 py-1.5' : 'px-3 py-2.5'
+      className={`group flex items-center gap-3.5 rounded-2xl transition-all duration-200 ${
+        isCompact ? 'px-3 py-2' : 'px-3.5 py-3'
       } ${
         isCurrent
-          ? 'accent-soft-bg border accent-ring'
-          : 'hover:bg-white/[0.04] border border-transparent'
+          ? 'surface-elevated border accent-ring accent-glow-ring'
+          : 'surface-card hover:border-[#F5F5FA]/15'
       }`}
     >
       {typeof index === 'number' && (
@@ -52,24 +53,26 @@ export default function TrackRow({
         type="button"
         onClick={() => onPlay(track.id)}
         aria-label={isCurrent && isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
-        className="relative shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className="relative shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
       >
         <CoverArt
           src={track.coverUrl}
           alt={track.title}
           fallbackGradient={track.fallbackGradient}
-          className={isCompact ? 'w-10 h-10 rounded-lg' : 'w-11 h-11 rounded-lg'}
-          iconSize={18}
+          glow={true}
+          glowSeed={track.id}
+          className={isCompact ? 'w-12 h-12 rounded-2xl' : 'w-14 h-14 rounded-2xl'}
+          iconSize={20}
         />
         <span
-          className={`absolute inset-0 flex items-center justify-center bg-black/55 transition-opacity ${
+          className={`absolute inset-0 flex items-center justify-center bg-black/55 rounded-2xl transition-opacity duration-200 ${
             isCurrent ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}
         >
           {isCurrent && isPlaying ? (
-            <Pause size={16} className="text-white fill-white" />
+            <Pause size={18} className="text-[#F5F5FA] fill-[#F5F5FA] icon-glow" />
           ) : (
-            <Play size={16} className="text-white fill-white ml-0.5" />
+            <Play size={18} className="text-[#F5F5FA] fill-[#F5F5FA] ml-0.5" />
           )}
         </span>
       </button>
@@ -79,10 +82,17 @@ export default function TrackRow({
         onClick={() => onPlay(track.id)}
         className="flex-1 min-w-0 text-left focus-visible:outline-none"
       >
-        <p className={`font-medium truncate ${isCompact ? 'text-xs' : 'text-sm'} ${isCurrent ? 'accent-text' : 'text-white'}`}>
-          {track.title}
-        </p>
-        <p className="text-xs text-slate-400 truncate mt-0.5">
+        <div className="flex items-center gap-2 min-w-0">
+          {isCurrent && <EqualizerBars active={isPlaying} />}
+          <p
+            className={`font-display font-semibold truncate ${
+              isCompact ? 'text-xs' : 'text-sm'
+            } ${isCurrent ? 'accent-text' : 'text-[#F5F5FA]'}`}
+          >
+            {track.title}
+          </p>
+        </div>
+        <p className="text-xs font-light text-slate-400 truncate mt-1">
           {track.artist}
           <span aria-hidden="true"> · </span>
           {track.genre}
@@ -106,21 +116,28 @@ export default function TrackRow({
           type="button"
           onClick={() => onToggleLike(track.id)}
           aria-label={isLiked ? `Unlike ${track.title}` : `Like ${track.title}`}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl text-slate-400 hover:text-[#F5F5FA] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
-          <Heart size={16} className={isLiked ? 'accent-text fill-current' : ''} />
+          <Heart
+            size={17}
+            strokeWidth={isLiked ? 2.2 : 1.75}
+            fill={isLiked ? 'currentColor' : 'none'}
+            className={isLiked ? 'text-[var(--accent2)] icon-glow' : ''}
+          />
         </button>
 
         <button
           type="button"
           onClick={() => onToggleDownload(track.id)}
-          aria-label={isDownloaded ? `Remove offline copy of ${track.title}` : `Download ${track.title}`}
-          className="min-h-[44px] min-w-[44px] hidden sm:flex items-center justify-center rounded-lg text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          aria-label={
+            isDownloaded ? `Remove offline copy of ${track.title}` : `Download ${track.title}`
+          }
+          className="min-h-[44px] min-w-[44px] hidden sm:flex items-center justify-center rounded-2xl text-slate-400 hover:text-[#F5F5FA] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           {isDownloaded ? (
-            <CheckCircle2 size={16} className="accent-text" />
+            <CheckCircle2 size={17} className="accent-text icon-glow" />
           ) : (
-            <Download size={16} />
+            <Download size={17} strokeWidth={1.75} />
           )}
         </button>
 
@@ -128,7 +145,7 @@ export default function TrackRow({
           type="button"
           onClick={() => onOpenMenu(track)}
           aria-label={`More options for ${track.title}`}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl text-slate-400 hover:text-[#F5F5FA] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           <MoreHorizontal size={18} />
         </button>
